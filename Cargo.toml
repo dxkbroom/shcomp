@@ -20,10 +20,13 @@ path = "src/main.rs"
 [dependencies]
 dirs = "6"
 eyre = "0.6"
+hex = "0.4"
 indexmap = { version = "2", features = ["serde"] }
+reqwest = { version = "0.13", default-features = false, features = ["default-tls", "blocking", "gzip"] }
 schemars = { version = "1", features = ["indexmap2", "preserve_order"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.10"
 tera = "2"
 toml = { version = "1", features = ["parse", "preserve_order"] }
 toml_edit = { version = "0.25", features = ["display", "parse"] }

@@ -10,7 +10,10 @@ fn main() -> ExitCode {
         Ok(cli) => match cli.run() {
             Ok(()) => ExitCode::SUCCESS,
             Err(err) => {
-                eprintln!("shcomp: {err:?}");
+                eprintln!("shcomp: {err}");
+                for cause in err.chain().skip(1) {
+                    eprintln!("  caused by: {cause}");
+                }
                 ExitCode::FAILURE
             }
         },
