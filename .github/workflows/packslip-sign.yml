@@ -66,4 +66,3 @@ jobs:
             completion/fish=asset:dist/shcomp.fish
             completion/powershell=asset:dist/shcomp.powershell
             man@linux=archive:shcomp/man/man1/shcomp.1
-            man@darwin=archive:shcomp/man/man1/shcomp.1
