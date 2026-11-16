@@ -1,0 +1,59 @@
+# Keyless packslip for an existing GitHub release (OIDC / no pubkey).
+#
+# After `mise run release:publish` creates the tag + assets:
+#   gh workflow run packslip-sign.yml -f tag=v0.0.1
+#   # or: Actions -> packslip-sign -> Run workflow
+#
+# Does not build binaries. Downloads release assets, signs with this job's
+# OIDC identity, uploads packslip.sigstore.json (clobbers a key-signed one).
+name: packslip-sign
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag (e.g. v0.0.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download release assets into dist/
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.tag }}"
+          mkdir -p dist
+          gh release download "$tag" -D dist \
+            -p 'shcomp-*.tar.gz' \
+            -p 'shcomp.usage.kdl' \
+            -p 'shcomp.bash' \
+            -p 'shcomp.zsh' \
+            -p 'shcomp.fish' \
+            -p 'shcomp.powershell'
+          ls -lh dist/
+
+      - uses: jdx/packslip@v1
+        with:
+          tag: ${{ inputs.tag }}
+          # Private user repos cannot use GitHub attestations; OIDC still signs.
+          attest: false
+          artifacts: dist/shcomp-*.tar.gz
+          bin: shcomp
+          resources: |
+            cli-spec/usage=asset:dist/shcomp.usage.kdl
+            completion/bash=asset:dist/shcomp.bash
+            completion/zsh=asset:dist/shcomp.zsh
+            completion/fish=asset:dist/shcomp.fish
+            completion/powershell=asset:dist/shcomp.powershell
+            man@linux=archive:shcomp/man/man1/shcomp.1
+            man@darwin=archive:shcomp/man/man1/shcomp.1

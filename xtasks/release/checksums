@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+#MISE description="Write SHASUMS256.txt for staged release artifacts"
+#USAGE arg "[dist-dir]" help="Directory of release artifacts (default: dist/)"
+set -euo pipefail
+
+task_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+source "$task_dir/lib.sh"
+
+cd "$(release_root)"
+dist="${usage_dist_dir:-dist}"
+
+if [[ ! -d $dist ]]; then
+  echo "dist directory not found: $dist" >&2
+  exit 1
+fi
+
+hash_cmd=(sha256sum)
+if ! command -v sha256sum >/dev/null 2>&1; then
+  hash_cmd=(shasum -a 256)
+fi
+
+cd "$dist"
+count="$(find . -maxdepth 1 -type f ! -name SHASUMS256.txt | wc -l | tr -d ' ')"
+if [[ $count -eq 0 ]]; then
+  echo "no artifacts in $dist" >&2
+  exit 1
+fi
+
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+find . -maxdepth 1 -type f ! -name SHASUMS256.txt -exec basename {} \; |
+  sort |
+  while IFS= read -r name; do
+    "${hash_cmd[@]}" "$name"
+  done >"$tmp"
+mv "$tmp" SHASUMS256.txt
+chmod 644 SHASUMS256.txt
+trap - EXIT
+
+echo "Wrote $dist/SHASUMS256.txt ($count files)"
+cat SHASUMS256.txt

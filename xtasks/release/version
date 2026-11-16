@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#MISE description="Print the package version from Cargo.toml"
+set -euo pipefail
+
+task_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+source "$task_dir/lib.sh"
+
+cd "$(release_root)"
+release_version

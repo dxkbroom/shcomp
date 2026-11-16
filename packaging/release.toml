@@ -1,0 +1,43 @@
+# Packslip release manifest template. Version and artifact paths are
+# overridden by `mise run release:publish` via CLI flags; this file documents
+# the intended resources layout.
+#
+# See https://packslip.dev/docs/describing-releases/
+
+project = "github.com/dxkbroom/shcomp"
+
+[[resource]]
+kind = "cli-spec"
+format = "usage"
+bin = "shcomp"
+asset = "dist/shcomp.usage.kdl"
+
+[[resource]]
+kind = "completion"
+shell = "bash"
+asset = "dist/shcomp.bash"
+
+[[resource]]
+kind = "completion"
+shell = "zsh"
+asset = "dist/shcomp.zsh"
+
+[[resource]]
+kind = "completion"
+shell = "fish"
+asset = "dist/shcomp.fish"
+
+[[resource]]
+kind = "completion"
+shell = "powershell"
+asset = "dist/shcomp.powershell"
+
+[[resource]]
+kind = "man"
+os = "linux"
+archive = "shcomp/man/man1/shcomp.1"
+
+[[resource]]
+kind = "man"
+os = "darwin"
+archive = "shcomp/man/man1/shcomp.1"

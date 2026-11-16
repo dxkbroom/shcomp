@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+#MISE description="Stage usage KDL and completions under dist/"
+set -euo pipefail
+
+task_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+source "$task_dir/lib.sh"
+
+cd "$(release_root)"
+
+mise run render
+
+mkdir -p dist
+cp shcomp.usage.kdl dist/shcomp.usage.kdl
+cp completions/shcomp.bash dist/shcomp.bash
+cp completions/_shcomp dist/shcomp.zsh
+cp completions/shcomp.fish dist/shcomp.fish
+cp completions/shcomp.ps1 dist/shcomp.powershell
+
+echo "Staged release assets under dist/"

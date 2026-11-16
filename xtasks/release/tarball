@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#MISE description="Build a platform tarball with the mise-shaped layout"
+#USAGE arg "[triple]" help="Rust target triple (default: host)"
+set -euo pipefail
+
+task_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+source "$task_dir/lib.sh"
+
+root="$(release_root)"
+cd "$root"
+
+triple="${usage_triple:-}"
+if [[ -z $triple ]]; then
+  triple="$(release_host_triple)"
+fi
+
+release_platform "$triple"
+version="$(release_version)"
+basename="shcomp-${version}-${RELEASE_OS}-${RELEASE_ARCH}"
+echo "Building ${basename} (${triple})"
+
+cargo build --release --locked --target "$triple"
+
+if [[ ! -f man/man1/shcomp.1 ]]; then
+  mise run render:mangen
+fi
+
+target_dir="${CARGO_TARGET_DIR:-target}"
+stage="dist/stage-${basename}"
+rm -rf "$stage"
+mkdir -p "$stage/shcomp/bin" "$stage/shcomp/man/man1"
+
+bin="$target_dir/$triple/release/shcomp"
+if [[ ! -f $bin ]]; then
+  # Host builds may omit the triple directory.
+  bin="$target_dir/release/shcomp"
+fi
+cp "$bin" "$stage/shcomp/bin/shcomp"
+chmod 755 "$stage/shcomp/bin/shcomp"
+cp man/man1/shcomp.1 "$stage/shcomp/man/man1/shcomp.1"
+cp README.md LICENSE "$stage/shcomp/"
+
+mkdir -p dist
+out="dist/${basename}.tar.gz"
+if tar --version 2>/dev/null | grep -q bsdtar; then
+  tar --uid 0 --gid 0 --uname root --gname root -C "$stage" -czf "$out" shcomp
+else
+  tar --owner=0 --group=0 -C "$stage" -czf "$out" shcomp
+fi
+rm -rf "$stage"
+ls -lh "$out"
