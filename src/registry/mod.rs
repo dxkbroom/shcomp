@@ -213,6 +213,9 @@ impl ResolvedTool {
     }
 }
 
+type ItemWithSource = (RegistryItem, Option<PathBuf>);
+type Layer<'a> = (&'a str, Vec<ItemWithSource>);
+
 #[derive(Debug, Default)]
 pub struct Registry {
     entries: Vec<Entry>,
@@ -231,7 +234,11 @@ pub struct SelectedTool {
 
 impl Registry {
     pub fn load(config: &Config) -> Result<Self> {
-        let mut layers: Vec<(&str, Vec<(RegistryItem, Option<PathBuf>)>)> = Vec::new();
+        Self::load_with(config, None)
+    }
+
+    pub fn load_with(config: &Config, registry_dir: Option<&Path>) -> Result<Self> {
+        let mut layers: Vec<Layer> = Vec::new();
 
         let mut embedded = Vec::new();
         for (name, text) in embedded::EMBEDDED {
@@ -244,7 +251,10 @@ impl Registry {
         layers.push(("embedded", embedded));
 
         let mut user = Vec::new();
-        let registry_dir = crate::dirs::registry_dir()?;
+        let registry_dir = match registry_dir {
+            Some(path) => path.to_path_buf(),
+            None => crate::dirs::registry_dir()?,
+        };
         if registry_dir.is_dir() {
             let mut files: Vec<PathBuf> = std::fs::read_dir(&registry_dir)
                 .wrap_err_with(|| format!("cannot read registry `{}`", registry_dir.display()))?
@@ -491,11 +501,13 @@ mod tests {
     use super::*;
 
     fn registry(items: &[&str]) -> Registry {
-        let mut config = Config::default();
-        config.registry = items
-            .iter()
-            .map(|item| toml::from_str(item).unwrap())
-            .collect();
+        let config = Config {
+            registry: items
+                .iter()
+                .map(|item| toml::from_str(item).unwrap())
+                .collect(),
+            ..Config::default()
+        };
         Registry::load(&config).unwrap()
     }
 

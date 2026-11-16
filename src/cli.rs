@@ -201,9 +201,13 @@ impl Install {
         if selected.is_empty() {
             bail!("no tools are selected; add one with `shcomp add <tool>`");
         }
-        // The zsh installer arrives in the shell layer; keep this command honest
+        let messages = crate::cache::prefetch(&config, &registry, self.prewarm, !self.no_fetch)?;
+        for message in messages {
+            println!("{message}");
+        }
+        // Shim installation arrives in the zsh layer; keep this command honest
         // until then rather than pretending a no-op installed anything.
-        bail!("install is implemented by the shell layer");
+        bail!("shims are implemented by the shell layer");
     }
 }
 
@@ -215,7 +219,17 @@ impl Uninstall {
 
 impl Load {
     pub fn run(self) -> Result<()> {
-        bail!("load is implemented by the source layer");
+        let config = Config::load_default()?;
+        let registry = Registry::load(&config)?;
+        let path = crate::cache::load_or_generate(
+            &config,
+            &registry,
+            &self.command,
+            &self.shell,
+            std::path::Path::new(&self.bin),
+        )?;
+        println!("{}", path.display());
+        Ok(())
     }
 }
 
