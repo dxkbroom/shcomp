@@ -1,0 +1,11 @@
+[tools]
+usage = "latest"
+rumdl = "0.2.79"
+tombi = "1.9.8"
+rust = "1.99.0"
+
+[env]
+_.path = ["./target/debug"]
+
+[task_config]
+includes = ["tasks.toml", "xtasks"]
