@@ -17,6 +17,8 @@ engine.
 - `mise run lint` / `mise run check` - rumdl, tombi, `cargo check`
 - `mise run fmt` / `mise run format` - cargo fmt, rumdl fmt, tombi format
 - `mise run render` - regenerate usage KDL, completions, man pages, schemas
+- `mise run release:bump <target>` - bump `Cargo.toml` and `Cargo.lock`
+- `mise run release:publish <version> [--dry-run] [--host-only]` - cut a release
 - `mise run bootstrap` - install the binary so `shcomp` is on `PATH`
 
 Run `cargo fmt --all` and `mise run lint` before committing.
@@ -33,6 +35,11 @@ Run `cargo fmt --all` and `mise run lint` before committing.
 - `registry/` - embedded registry items, one per workspace.
 - `e2e/` - isolated end-to-end harness and `test_*` scripts.
 - `xtasks/test/e2e` - mise task entry point for the e2e harness.
+- `xtasks/release/` - release file tasks (`bump`, `assets`, `tarball`,
+  `checksums`, `publish`); `lib.sh` is a non-executable helper.
+- `release-notes/` - GitHub release notes, one file per version.
+- `packaging/release.toml` - packslip resource layout.
+- `.github/workflows/` - `packslip-sign.yml` plus the deactivated release matrix.
 - `schema/` - generated JSON Schema; do not edit by hand.
 
 ## Design rules

@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#MISE description="Bump the package version in Cargo.toml and Cargo.lock"
+#USAGE arg "<target>" help="X.Y.Z, or one of: patch, minor, major"
+set -euo pipefail
+
+task_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+source "$task_dir/lib.sh"
+
+root="$(release_root)"
+cd "$root"
+
+target="${usage_target:?missing required arg <target>}"
+current="$(release_version)"
+
+if [[ $target =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  version="$target"
+elif [[ $target =~ ^(patch|minor|major)$ ]]; then
+  IFS=. read -r major minor patch <<<"$current"
+  case "$target" in
+    major)
+      major=$((major + 1))
+      minor=0
+      patch=0
+      ;;
+    minor)
+      minor=$((minor + 1))
+      patch=0
+      ;;
+    patch) patch=$((patch + 1)) ;;
+  esac
+  version="$major.$minor.$patch"
+else
+  echo "version must be X.Y.Z or patch|minor|major (got: $target)" >&2
+  exit 2
+fi
+
+tmp="$(mktemp)"
+awk -v version="$version" '
+  /^\[/ { section = $0 }
+  section == "[package]" && /^version[[:space:]]*=/ && !done {
+    sub(/"[^"]*"/, "\"" version "\"")
+    done = 1
+  }
+  { print }
+' Cargo.toml >"$tmp"
+mv "$tmp" Cargo.toml
+
+# Sync the lockfile entry for this package without touching dependencies.
+cargo update --package shcomp --quiet
+
+echo "bumped $current -> $version"
+echo "  Cargo.toml"
+echo "  Cargo.lock"

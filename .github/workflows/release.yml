@@ -1,0 +1,86 @@
+# Wired for later automation. Deactivated: workflow_dispatch only — do NOT
+# enable push/tags until `mise run release:publish` is retired.
+#
+# Primary path today:
+#   mise run release:publish <version>
+#
+# This workflow is a sketch of the same matrix + packslip steps so it can be
+# turned on later without rediscovering the layout.
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to finish (e.g. v0.0.1), or leave empty"
+        required: false
+        type: string
+
+# Hard off-switch while the manual task owns releases. Remove these `if: false`
+# gates (and optionally add `push: tags: ['v*']`) when enabling CI publishing.
+jobs:
+  noop:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "release workflow deactivated; use mise run release:publish"
+
+  # --- Intended future matrix. Never runs while the `if: false` gates stay. ---
+
+  build:
+    if: false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            triple: aarch64-unknown-linux-gnu
+          - os: macos-latest
+            triple: aarch64-apple-darwin
+          - os: macos-latest
+            triple: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      - uses: Swatinem/rust-cache@v2
+      - run: rustup target add ${{ matrix.triple }}
+      - run: mise run release:assets
+      - run: mise run release:tarball ${{ matrix.triple }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shcomp-${{ matrix.triple }}
+          path: dist/*.tar.gz
+
+  packslip:
+    if: false
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Stage dist/
+        run: |
+          mkdir -p dist
+          find artifacts -type f -name '*.tar.gz' -exec cp -t dist {} +
+          mise run release:assets
+      - uses: jdx/packslip@v1
+        with:
+          artifacts: dist/shcomp-*.tar.gz
+          bin: shcomp
+          resources: |
+            cli-spec/usage=asset:dist/shcomp.usage.kdl
+            completion/bash=asset:dist/shcomp.bash
+            completion/zsh=asset:dist/shcomp.zsh
+            completion/fish=asset:dist/shcomp.fish
+            completion/powershell=asset:dist/shcomp.powershell
+            man@linux=archive:shcomp/man/man1/shcomp.1
+            man@darwin=archive:shcomp/man/man1/shcomp.1
