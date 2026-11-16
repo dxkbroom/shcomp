@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# Run one e2e test inside an isolated HOME, TMPDIR, and shcomp state.
+#
+# The harness sources `assert.sh` before the test, so a test can assume the
+# assertions exist and only describe the behavior it checks.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+# shellcheck source-path=SCRIPTDIR
+source "$SCRIPT_DIR/style.sh"
+
+TEST="$1"
+case "$TEST" in
+  /*) TEST_SCRIPT="$TEST" ;;
+  e2e/*) TEST_SCRIPT="$ROOT/$TEST" ;;
+  *) TEST_SCRIPT="$SCRIPT_DIR/$TEST" ;;
+esac
+
+if [[ ! -f $TEST_SCRIPT ]]; then
+  err "no such test: $TEST_SCRIPT"
+  exit 1
+fi
+
+setup_isolated_env() {
+  TEST_ISOLATED_DIR="$(mktemp --tmpdir --directory "$(basename "$TEST").XXXXXX")"
+  TEST_HOME="$TEST_ISOLATED_DIR/home"
+  TEST_WORKDIR="$TEST_HOME/workdir"
+  TEST_TMPDIR="$TEST_ISOLATED_DIR/tmp"
+
+  SHCOMP_CONFIG_DIR="$TEST_HOME/.config/shcomp"
+  SHCOMP_DATA_DIR="$TEST_HOME/.local/share/shcomp"
+  SHCOMP_CACHE_DIR="$TEST_HOME/.cache/shcomp"
+  SHCOMP_CONFIG="$SHCOMP_CONFIG_DIR/config.toml"
+  SHCOMP_BIN="${SHCOMP_E2E_BIN:-$ROOT/target/debug/shcomp}"
+
+  MISE_SYSTEM_DIR="$TEST_ISOLATED_DIR/etc/mise"
+  MISE_CONFIG_DIR="$TEST_HOME/.config/mise"
+  MISE_DATA_DIR="$TEST_HOME/.local/share/mise"
+  MISE_CACHE_DIR="$TEST_HOME/.cache/mise"
+  MISE_STATE_DIR="$TEST_HOME/.local/state/mise"
+}
+
+create_isolated_env() {
+  mkdir -p \
+    "$TEST_HOME/bin" \
+    "$TEST_WORKDIR" \
+    "$TEST_TMPDIR" \
+    "$SHCOMP_CONFIG_DIR" \
+    "$SHCOMP_DATA_DIR" \
+    "$SHCOMP_CACHE_DIR" \
+    "$MISE_SYSTEM_DIR" \
+    "$MISE_CONFIG_DIR" \
+    "$MISE_DATA_DIR" \
+    "$MISE_CACHE_DIR" \
+    "$MISE_STATE_DIR"
+}
+
+remove_isolated_env() {
+  # A straggling process can still be writing into the tree; retry briefly.
+  local _i
+  for _i in 1 2 3 4 5; do
+    rm -rf "$TEST_ISOLATED_DIR" 2>/dev/null && return 0
+    sleep 0.2
+  done
+  rm -rf "$TEST_ISOLATED_DIR" 2>/dev/null || true
+}
+
+within_isolated_env() {
+  local env_args=(
+    HOME="$TEST_HOME"
+    LANG="${LANG:-C.UTF-8}"
+    LC_ALL="${LC_ALL:-}"
+    PATH="$ROOT/target/debug:$TEST_HOME/bin:/opt/homebrew/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin:/bin"
+    RUST_BACKTRACE="${RUST_BACKTRACE:-1}"
+    SHELL="$(type -p bash)"
+    TERM="${TERM:-dumb}"
+    TMPDIR="$TEST_TMPDIR"
+    ROOT="$ROOT"
+    TEST_DIR="$(dirname "$TEST_SCRIPT")"
+    TEST_HOME="$TEST_HOME"
+    TEST_ISOLATED_DIR="$TEST_ISOLATED_DIR"
+    TEST_NAME="$TEST"
+    TEST_ROOT="$SCRIPT_DIR"
+    TEST_SCRIPT="$TEST_SCRIPT"
+    TEST_TMPDIR="$TEST_TMPDIR"
+    TEST_WORKDIR="$TEST_WORKDIR"
+    XDG_CACHE_HOME="$TEST_HOME/.cache"
+    XDG_CONFIG_HOME="$TEST_HOME/.config"
+    XDG_DATA_HOME="$TEST_HOME/.local/share"
+    XDG_STATE_HOME="$TEST_HOME/.local/state"
+    SHCOMP_BIN="$SHCOMP_BIN"
+    SHCOMP_CACHE_DIR="$SHCOMP_CACHE_DIR"
+    SHCOMP_CONFIG="$SHCOMP_CONFIG"
+    SHCOMP_CONFIG_DIR="$SHCOMP_CONFIG_DIR"
+    SHCOMP_DATA_DIR="$SHCOMP_DATA_DIR"
+    SHCOMP_REGISTRY_DIR="$SHCOMP_CONFIG_DIR/registry"
+    MISE_CACHE_DIR="$MISE_CACHE_DIR"
+    MISE_CONFIG_DIR="$MISE_CONFIG_DIR"
+    MISE_DATA_DIR="$MISE_DATA_DIR"
+    MISE_STATE_DIR="$MISE_STATE_DIR"
+    MISE_SYSTEM_DIR="$MISE_SYSTEM_DIR"
+    MISE_YES=1
+  )
+
+  (
+    cd "$TEST_WORKDIR" &&
+      exec env -i "${env_args[@]}" "$@"
+  )
+}
+
+run_test() {
+  setup_isolated_env
+
+  if [[ ! -x $SHCOMP_BIN ]]; then
+    err "shcomp is not executable at $SHCOMP_BIN (run 'mise run build')"
+    return 1
+  fi
+
+  create_isolated_env
+
+  local status=0 shebang start end duration
+  # shellcheck disable=SC2016 # expanded by the child shell, not this one
+  local source_assert='source "$1" && source "$2"'
+  start="$(date +%s)"
+
+  shebang="$(head -n 1 "$TEST_SCRIPT")"
+  if [[ $shebang == "#!/usr/bin/env zsh"* ]]; then
+    within_isolated_env zsh -f -euo pipefail -c \
+      "$source_assert" _ "$SCRIPT_DIR/assert.sh" "$TEST_SCRIPT" || status=$?
+  elif [[ $shebang == "#!/usr/bin/env fish"* ]]; then
+    within_isolated_env fish --no-config "$TEST_SCRIPT" || status=$?
+  else
+    within_isolated_env bash --noprofile --norc -euo pipefail -c \
+      "$source_assert" _ "$SCRIPT_DIR/assert.sh" "$TEST_SCRIPT" || status=$?
+  fi
+
+  end="$(date +%s)"
+  duration="$((end - start))s"
+
+  echo "$TEST: $duration" >&2
+
+  if [[ $status == 0 ]]; then
+    remove_isolated_env
+    summary "$TEST" "$duration" ":white_check_mark:"
+  else
+    title="E2E test $TEST failed" err "exited with status code $status"
+    echo "Test environment can be examined in $TEST_ISOLATED_DIR" >&2
+    summary "$TEST" "$duration" ":x:"
+  fi
+
+  return "$status"
+}
+
+as_group "E2E $TEST" run_test

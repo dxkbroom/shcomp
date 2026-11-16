@@ -13,7 +13,7 @@ engine.
 - `mise run build` / `mise run b` - build the crate
 - `mise run test` / `mise run t` - all tests
 - `mise run test:unit` - `cargo test --all-features --workspace`
-- `mise run test:e2e --all` - end-to-end tests under `xtasks/test`
+- `mise run test:e2e --all` - end-to-end tests under `e2e/`
 - `mise run lint` / `mise run check` - rumdl, tombi, `cargo check`
 - `mise run fmt` / `mise run format` - cargo fmt, rumdl fmt, tombi format
 - `mise run render` - regenerate usage KDL, completions, man pages, schemas
@@ -31,7 +31,8 @@ Run `cargo fmt --all` and `mise run lint` before committing.
 - `src/dirs.rs` - XDG paths and environment overrides.
 - `src/schema.rs` - JSON Schema output.
 - `registry/` - embedded registry items, one per workspace.
-- `xtasks/test/` - end-to-end tests.
+- `e2e/` - isolated end-to-end harness and `test_*` scripts.
+- `xtasks/test/e2e` - mise task entry point for the e2e harness.
 - `schema/` - generated JSON Schema; do not edit by hand.
 
 ## Design rules
