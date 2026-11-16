@@ -161,21 +161,31 @@ pub fn prefetch(
             }
             if let Some(url) = &source.url {
                 if !fetch {
-                    messages.push(format!("skipped {command}: URL fetching is disabled"));
+                    messages.push(format!(
+                        "skipped {command} {shell}: URL fetching is disabled"
+                    ));
                     continue;
                 }
-                let context = context_for(config, &tool, shell, &bin, source)?;
-                let url = crate::template::render(url, &context)?;
-                let timeout = match &source.timeout {
-                    Some(timeout) => crate::config::parse_duration(timeout)?,
-                    None => config.settings.timeout()?,
-                };
-                source::fetch_url(&root, &url, source.sha256.as_deref(), timeout)?;
-                messages.push(format!("fetched {command} {shell}"));
+                let fetched = (|| -> Result<()> {
+                    let context = context_for(config, &tool, shell, &bin, source)?;
+                    let url = crate::template::render(url, &context)?;
+                    let timeout = match &source.timeout {
+                        Some(timeout) => crate::config::parse_duration(timeout)?,
+                        None => config.settings.timeout()?,
+                    };
+                    source::fetch_url(&root, &url, source.sha256.as_deref(), timeout)?;
+                    Ok(())
+                })();
+                match fetched {
+                    Ok(()) => messages.push(format!("fetched {command} {shell}")),
+                    Err(error) => messages.push(format!("skipped {command} {shell}: {error}")),
+                }
             }
             if prewarm {
-                load_or_generate(config, registry, &command, shell, &bin)?;
-                messages.push(format!("generated {command} {shell}"));
+                match load_or_generate(config, registry, &command, shell, &bin) {
+                    Ok(_) => messages.push(format!("generated {command} {shell}")),
+                    Err(error) => messages.push(format!("skipped {command} {shell}: {error}")),
+                }
             }
         }
     }
