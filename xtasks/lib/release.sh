@@ -12,9 +12,14 @@ release_version() {
 }
 
 release_crate_version() {
-  local name="$1" id
-  id="$(cargo pkgid "$name")"
-  printf '%s\n' "${id##*@}"
+  local name="$1" version
+  version="$(cargo metadata --no-deps --format-version 1 |
+    jq -r --arg name "$name" '.packages[] | select(.name == $name) | .version')"
+  if [[ -z $version ]]; then
+    echo "unknown crate: $name" >&2
+    return 1
+  fi
+  printf '%s\n' "$version"
 }
 
 release_manifest_version() {
