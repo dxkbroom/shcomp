@@ -1,0 +1,9 @@
+repo = "alexpasmantier/television"
+main = "tv"
+description = "A fast, portable fuzzy finder"
+
+[[tools]]
+name = "tv"
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "completions", "{{ shell }}"]

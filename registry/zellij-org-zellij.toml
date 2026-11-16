@@ -1,0 +1,9 @@
+repo = "zellij-org/zellij"
+main = "zellij"
+description = "A terminal workspace with multiplexing"
+
+[[tools]]
+name = "zellij"
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "setup", "--generate-completion", "{{ shell }}"]

@@ -293,3 +293,115 @@ run = ["{{ bin }}", "completion", "{{ shell }}"]
         assert!(toml::from_str::<Config>("[settings]\nunknown = true\n").is_err());
     }
 }
+
+/// Add one selection to a config document, preserving comments and layout.
+pub fn add_selection(text: &str, reference: &str, aliases: &[String]) -> Result<String> {
+    for alias in aliases {
+        validate_command_name(alias)?;
+    }
+    let is_new = text.trim().is_empty();
+    let mut document: toml_edit::DocumentMut = if is_new {
+        toml_edit::DocumentMut::new()
+    } else {
+        text.parse().wrap_err("cannot parse the config as TOML")?
+    };
+
+    if !document.contains_key("tools") {
+        let mut tools = toml_edit::Table::new();
+        tools.set_implicit(false);
+        document.insert("tools", toml_edit::Item::Table(tools));
+    }
+    let tools = document["tools"]
+        .as_table_mut()
+        .ok_or_else(|| eyre::eyre!("`tools` must be a table"))?;
+
+    let existing_aliases = tools
+        .get(reference)
+        .and_then(|item| item.as_table_like())
+        .and_then(|table| table.get("aliases"))
+        .and_then(|item| item.as_array())
+        .map(|array| {
+            array
+                .iter()
+                .filter_map(|value| value.as_str().map(str::to_string))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let mut merged = existing_aliases;
+    for alias in aliases {
+        if !merged.contains(alias) {
+            merged.push(alias.clone());
+        }
+    }
+
+    if merged.is_empty() {
+        // Keep an existing table intact if it had other options.
+        if tools
+            .get(reference)
+            .and_then(|item| item.as_table_like())
+            .is_none()
+        {
+            tools.insert(
+                reference,
+                toml_edit::Item::Value(toml_edit::Value::from(true)),
+            );
+        }
+    } else {
+        let mut array = toml_edit::Array::new();
+        for alias in &merged {
+            array.push(alias.as_str());
+        }
+        if let Some(table) = tools
+            .get_mut(reference)
+            .and_then(toml_edit::Item::as_table_like_mut)
+        {
+            table.insert(
+                "aliases",
+                toml_edit::Item::Value(toml_edit::Value::Array(array)),
+            );
+        } else {
+            let mut table = toml_edit::InlineTable::new();
+            table.insert("aliases", toml_edit::Value::Array(array));
+            tools.insert(
+                reference,
+                toml_edit::Item::Value(toml_edit::Value::InlineTable(table)),
+            );
+        }
+    }
+
+    let mut output = document.to_string();
+    if is_new {
+        output.insert_str(0, "# shcomp: tools to complete. See `shcomp schema`.\n");
+    }
+    Ok(output)
+}
+
+#[cfg(test)]
+mod add_tests {
+    use super::*;
+
+    #[test]
+    fn adds_a_boolean_selection() {
+        let text = add_selection("", "gh", &[]).unwrap();
+        assert!(text.contains("[tools]"), "{text}");
+        assert!(text.contains("gh = true"), "{text}");
+    }
+
+    #[test]
+    fn adds_aliases_without_losing_comments() {
+        let original = "# keep me\n[tools]\nuv = true\n";
+        let text = add_selection(original, "gh", &["github".to_string()]).unwrap();
+        assert!(text.contains("# keep me"), "{text}");
+        assert!(text.contains("uv = true"), "{text}");
+        assert!(text.contains("aliases = [\"github\"]"), "{text}");
+    }
+
+    #[test]
+    fn merges_existing_aliases() {
+        let original = "[tools]\ngh = { aliases = [\"github\"] }\n";
+        let text = add_selection(original, "gh", &["ghx".to_string()]).unwrap();
+        assert!(text.contains("\"github\""), "{text}");
+        assert!(text.contains("\"ghx\""), "{text}");
+    }
+}

@@ -1,0 +1,9 @@
+repo = "astral-sh/uv"
+main = "uv"
+description = "An extremely fast Python package manager"
+
+[[tools]]
+name = "uv"
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "generate-shell-completion", "{{ shell }}"]

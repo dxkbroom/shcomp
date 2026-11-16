@@ -1,0 +1,9 @@
+repo = "oven-sh/bun"
+main = "bun"
+description = "A fast all-in-one JavaScript runtime"
+
+[[tools]]
+name = "bun"
+
+[tools.completions.zsh]
+url = "https://raw.githubusercontent.com/oven-sh/bun/bun-v{{ version }}/completions/bun.zsh"

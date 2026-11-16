@@ -84,9 +84,15 @@ pub struct Source {
     #[serde(default)]
     pub url: Option<String>,
 
-    /// Required for embedded `url` sources; hex SHA-256 of the file.
+    /// Hex SHA-256 of the fetched file. Optional for a version-pinned URL,
+    /// whose cache records the hash it fetched; required for a static URL in
+    /// the embedded registry.
     #[serde(default)]
     pub sha256: Option<String>,
+
+    /// Environment variables for `run`, rendered as templates.
+    #[serde(default)]
+    pub env: BTreeMap<String, String>,
 
     #[serde(default)]
     pub kind: SourceKind,
@@ -121,7 +127,11 @@ impl Source {
             }
             match self.sha256.as_deref() {
                 Some(checksum) => validate_sha256(checksum)?,
-                None if embedded => bail!("an embedded `url` source needs `sha256`"),
+                None if embedded && !url.contains("{{ version }}") => {
+                    bail!(
+                        "an embedded `url` source needs `sha256` or a `{{{{ version }}}}` template"
+                    )
+                }
                 None => {}
             }
         } else if self.sha256.is_some() {
@@ -581,5 +591,65 @@ url = "https://example.com/_tool"
         .unwrap();
         let selected = registry.selected(&config).unwrap();
         assert_eq!(selected[0].aliases, ["github", "ghx"]);
+    }
+}
+
+#[cfg(test)]
+mod embedded_tests {
+    use super::*;
+
+    #[test]
+    fn every_embedded_item_validates_and_has_zsh() {
+        assert!(!embedded::EMBEDDED.is_empty());
+        let mut entries = Vec::new();
+        for (name, text) in embedded::EMBEDDED {
+            let item: RegistryItem =
+                toml::from_str(text).unwrap_or_else(|error| panic!("{name}: {error}"));
+            validate_item(&item, true).unwrap_or_else(|error| panic!("{name}: {error:?}"));
+            for tool in &item.tools {
+                assert!(
+                    tool.completions.contains_key("zsh"),
+                    "{name}/{} has no zsh source",
+                    tool.name
+                );
+            }
+            let repo = item
+                .repo
+                .as_deref()
+                .map(normalize_repo)
+                .transpose()
+                .unwrap();
+            entries.push(Entry {
+                item,
+                repo,
+                source_path: None,
+            });
+        }
+        let mut registry = Registry {
+            entries,
+            ..Default::default()
+        };
+        registry.index().unwrap();
+
+        for reference in [
+            "gh",
+            "cli/cli",
+            "cli/cli/gh",
+            "chezmoi",
+            "uv",
+            "cargo",
+            "android",
+            "tv",
+            "zellij",
+            "herdr",
+            "bun",
+            "eza",
+            "gradle",
+            "just",
+        ] {
+            registry
+                .resolve_str(reference)
+                .unwrap_or_else(|error| panic!("{reference}: {error}"));
+        }
     }
 }
