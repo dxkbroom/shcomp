@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# complete-word delegates to the target shell. With mise selecting the
+# version, the same command must report that version's candidates.
+
+skip_unless_cmd zsh
+skip_unless_cmd mise
+
+for version in 1.0.0 2.0.0; do
+  mkdir -p "installs/gh/$version/bin"
+  cat >"installs/gh/$version/bin/gh" <<SH
+#!/bin/sh
+printf '#compdef gh\n_gh() { compadd version$version; }\n'
+SH
+  chmod +x "installs/gh/$version/bin/gh"
+done
+
+mise link gh@1.0.0 "$PWD/installs/gh/1.0.0" >/dev/null
+mise link gh@2.0.0 "$PWD/installs/gh/2.0.0" >/dev/null
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+gh = true
+TOML
+
+mkdir -p project
+cd project || exit
+
+one=$(mise x gh@1.0.0 -- "$SHCOMP_BIN" complete-word gh@1.0.0 gh "")
+two=$(mise x gh@2.0.0 -- "$SHCOMP_BIN" complete-word gh@2.0.0 gh "")
+
+assert_contains_text "$one" "version1.0.0"
+assert_not_contains_text "$one" "version2.0.0"
+assert_contains_text "$two" "version2.0.0"
+assert_not_contains_text "$two" "version1.0.0"
+
+ok "complete-word follows the mise-selected version"

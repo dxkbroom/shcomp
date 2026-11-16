@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# install reconciles shims, doctor notices stale aliases, and uninstall removes
+# only files shcomp wrote.
+
+mkdir -p bin
+cat >bin/fake <<'SH'
+#!/bin/sh
+printf '#compdef fake\n_fake() { compadd one; }\n'
+SH
+chmod +x bin/fake
+
+write_config() {
+  cat >"$SHCOMP_CONFIG"
+}
+
+write_config <<'TOML'
+[tools]
+"example/fake" = { aliases = ["fk"] }
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+
+PATH="$PWD/bin:$PATH" "$SHCOMP_BIN" install >/dev/null
+shim="$SHCOMP_DATA_DIR/zsh/site-functions/_fake"
+assert_exists "$shim"
+assert_file_contains "$shim" '#compdef fake fk'
+
+write_config <<'TOML'
+[tools]
+"example/fake" = { aliases = ["fk", "fk2"] }
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+
+doctor=$("$SHCOMP_BIN" doctor)
+assert_contains_text "$doctor" "stale"
+
+PATH="$PWD/bin:$PATH" "$SHCOMP_BIN" install >/dev/null
+assert_file_contains "$shim" '#compdef fake fk fk2'
+
+check=$(PATH="$PWD/bin:$PATH" "$SHCOMP_BIN" doctor --check)
+assert_contains_text "$check" "fake: ok"
+
+rm -rf "$SHCOMP_CACHE_DIR"
+PATH="$PWD/bin:$PATH" "$SHCOMP_BIN" install --prewarm >/dev/null
+assert_succeed "find \"$SHCOMP_CACHE_DIR/scripts/zsh/fake\" -name '*.zsh' -print -quit | grep -q ."
+
+dry=$(PATH="$PWD/bin:$PATH" "$SHCOMP_BIN" uninstall --dry-run)
+assert_contains_text "$dry" "would remove"
+assert_exists "$shim"
+
+PATH="$PWD/bin:$PATH" "$SHCOMP_BIN" uninstall >/dev/null
+assert_not_exists "$shim"
+
+ok "install, doctor, and uninstall"

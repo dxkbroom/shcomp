@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# A command mise's packslip loader already completes must not get a shcomp shim.
+
+mkdir -p mise-install/bin bin
+cat >mise-install/bin/fake <<'SH'
+#!/bin/sh
+printf '#compdef fake\n_fake() { compadd one; }\n'
+SH
+chmod +x mise-install/bin/fake
+
+cat >bin/mise <<SH
+#!/bin/sh
+case "\$1 \$2" in
+  "ls --json")
+    printf '{"fake":[{"version":"1.0.0","install_path":"$PWD/mise-install","installed":true}]}'
+    ;;
+  "completion zsh")
+    printf '#compdef fake\n_fake() { compadd from-mise; }\n'
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+SH
+chmod +x bin/mise
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+"example/fake" = true
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+
+export PATH="$PWD/bin:$PWD/mise-install/bin:$PATH"
+
+out=$("$SHCOMP_BIN" install)
+assert_contains_text "$out" "skipped fake"
+assert_not_exists "$SHCOMP_DATA_DIR/zsh/site-functions/_fake"
+
+doctor=$("$SHCOMP_BIN" doctor)
+assert_contains_text "$doctor" "mise's packslip loader owns it"
+
+ok "mise packslip deference"

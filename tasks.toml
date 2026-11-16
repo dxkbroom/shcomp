@@ -31,11 +31,6 @@ description = "run unit tests"
 run = "cargo test --all-features --workspace"
 env = { CARGO_TERM_COLOR = "always", "RUST_TEST_THREADS" = "1" }
 
-["test:e2e"]
-description = "run end-to-end tests"
-depends = ["build"]
-run = "bash xtasks/test/run.sh"
-
 [render]
 description = "Run all render tasks"
 depends = ["render:*"]

@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# The zsh shim loads a version's script once, calls the captured body on later
+# completions, and reloads when PATH selects a different executable.
+
+skip_unless_cmd zsh
+
+mkdir -p v1 v2 logbin
+
+cat >v1/fake <<'SH'
+#!/bin/sh
+printf '#compdef fake\n_fake() { compadd one two; }\n'
+SH
+cat >v2/fake <<'SH'
+#!/bin/sh
+printf '#compdef fake\n_fake() { compadd three four; }\n'
+SH
+chmod +x v1/fake v2/fake
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+"example/fake" = { aliases = ["fk"] }
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+
+export SHCOMP_LOG="$PWD/load.log"
+export SHCOMP_TMP="$PWD"
+
+PATH="$PWD/v1:$PATH" "$SHCOMP_BIN" install >/dev/null
+
+cat >logbin/shcomp <<'SH'
+#!/bin/sh
+printf '%s\n' "$*" >>"$SHCOMP_LOG"
+exec "$SHCOMP_BIN" "$@"
+SH
+chmod +x logbin/shcomp
+
+cat >harness.zsh <<'ZSH'
+unset FPATH
+fpath=("$SHCOMP_DATA_DIR/zsh/site-functions" /usr/share/zsh/functions/Completion /usr/share/zsh/functions/Completion/*)
+autoload -Uz compinit
+compinit -u -d "$SHCOMP_TMP/zcompdump"
+
+__cands=()
+compadd() { __cands+=("$@") }
+
+path=("$SHCOMP_TMP/v1" $path)
+rehash
+words=(fake "")
+CURRENT=2
+__cands=(); _fake
+print -r -- "v1a:${(j:,:)__cands}"
+__cands=(); _fake
+print -r -- "v1b:${(j:,:)__cands}"
+
+path=("$SHCOMP_TMP/v2" $path)
+rehash
+words=(fake "")
+CURRENT=2
+__cands=(); _fake
+print -r -- "v2a:${(j:,:)__cands}"
+__cands=(); _fake
+print -r -- "v2b:${(j:,:)__cands}"
+
+words=(fk "")
+CURRENT=2
+__cands=(); _fake
+print -r -- "alias:${(j:,:)__cands}"
+
+if [[ ${functions[_fake]} == *__shcomp_bin_fake_* ]]; then
+  print -r -- "wrapper:restored"
+else
+  print -r -- "wrapper:lost"
+fi
+ZSH
+
+out=$(PATH="$PWD/logbin:$PWD/v1:$PATH" zsh -f "$PWD/harness.zsh")
+printf '%s\n' "$out"
+
+assert_contains_text "$out" "v1a:one,two"
+assert_contains_text "$out" "v1b:one,two"
+assert_contains_text "$out" "v2a:three,four"
+assert_contains_text "$out" "v2b:three,four"
+assert_contains_text "$out" "alias:three,four"
+assert_contains_text "$out" "wrapper:restored"
+
+loads=$(wc -l <"$SHCOMP_LOG")
+if [[ $loads -ne 2 ]]; then
+  fail "expected 2 loads (one per version), got $loads: $(cat "$SHCOMP_LOG")"
+fi
+
+ok "zsh shim dispatch and warm path"
