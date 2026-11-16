@@ -103,6 +103,19 @@ pub struct Source {
 }
 
 impl Source {
+    pub fn kind_name(&self) -> &'static str {
+        if self.url.is_some() {
+            "url"
+        } else if self.path.is_some() {
+            "path"
+        } else {
+            match self.kind {
+                SourceKind::Native => "run",
+                SourceKind::Bashcomp => "bashcomp",
+            }
+        }
+    }
+
     pub fn validate(&self, embedded: bool) -> Result<()> {
         let count = [self.run.is_some(), self.path.is_some(), self.url.is_some()]
             .into_iter()

@@ -85,6 +85,21 @@ grep -q '#compdef fake fk fk2' "$shim" || {
   exit 1
 }
 
+check=$("$bin" doctor --check)
+[[ $check == *"fake: ok"* ]] || {
+  echo "doctor --check did not run the generator" >&2
+  echo "$check" >&2
+  exit 1
+}
+
+rm -rf "$SHCOMP_CACHE_DIR"
+"$bin" install --prewarm >/dev/null
+find "$SHCOMP_CACHE_DIR/scripts/zsh/fake" -name '*.zsh' -print -quit | grep -q . || {
+  echo "install --prewarm did not generate a script" >&2
+  find "$SHCOMP_CACHE_DIR" >&2
+  exit 1
+}
+
 dry=$("$bin" uninstall --dry-run)
 [[ $dry == *"would remove"* && -f $shim ]] || {
   echo "uninstall --dry-run changed the tree" >&2
