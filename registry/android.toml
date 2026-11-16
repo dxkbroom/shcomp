@@ -1,0 +1,7 @@
+description = "Android command-line tools"
+
+[[tools]]
+name = "android"
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "completion", "{{ shell }}"]

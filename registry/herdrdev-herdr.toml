@@ -1,0 +1,9 @@
+repo = "herdrdev/herdr"
+main = "herdr"
+description = "The runtime coding agents live on"
+
+[[tools]]
+name = "herdr"
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "completion", "{{ shell }}"]

@@ -1,0 +1,9 @@
+repo = "gradle/gradle"
+main = "gradle"
+description = "A build automation tool"
+
+[[tools]]
+name = "gradle"
+
+[tools.completions.zsh]
+url = "https://raw.githubusercontent.com/gradle/gradle-completion/v{{ version }}/_gradle"

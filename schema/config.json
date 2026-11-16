@@ -210,12 +210,20 @@
           "default": null
         },
         "sha256": {
-          "description": "Required for embedded `url` sources; hex SHA-256 of the file.",
+          "description": "Hex SHA-256 of the fetched file. Optional for a version-pinned URL,\nwhose cache records the hash it fetched; required for a static URL in\nthe embedded registry.",
           "type": [
             "string",
             "null"
           ],
           "default": null
+        },
+        "env": {
+          "description": "Environment variables for `run`, rendered as templates.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
         },
         "kind": {
           "$ref": "#/$defs/SourceKind",

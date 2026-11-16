@@ -114,12 +114,17 @@ sha256 = "…"
 [tools.completions.zsh]
 kind = "bashcomp"
 run = ["{{ bin }}", "generate-completion", "{{ shell }}"]
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "+nightly"]
+env = { CARGO_COMPLETE = "zsh" }
 ```
 
 Templates use Tera v2, the same syntax mise uses. `exec()` and `read_file()`
 are deliberately unavailable: rendering a registry item must not run a
-command. URL sources are fetched only by `shcomp install` and verified against
-`sha256`; completion never touches the network.
+command. URL sources are fetched only by `shcomp install`; completion never
+touches the network. A `sha256` is verified when present, and the cache records
+the hash it fetched for a version-pinned URL.
 
 ## Commands
 

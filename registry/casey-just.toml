@@ -1,0 +1,9 @@
+repo = "casey/just"
+main = "just"
+description = "A handy command runner"
+
+[[tools]]
+name = "just"
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "--completions", "{{ shell }}"]

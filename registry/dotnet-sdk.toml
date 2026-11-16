@@ -1,0 +1,9 @@
+repo = "dotnet/sdk"
+main = "dotnet"
+description = ".NET SDK"
+
+[[tools]]
+name = "dotnet"
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "completions", "script", "{{ shell }}"]

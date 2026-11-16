@@ -1,0 +1,9 @@
+repo = "twpayne/chezmoi"
+main = "chezmoi"
+description = "Manage your dotfiles across multiple machines"
+
+[[tools]]
+name = "chezmoi"
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "completion", "{{ shell }}"]

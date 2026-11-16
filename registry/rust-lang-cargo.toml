@@ -1,0 +1,10 @@
+repo = "rust-lang/cargo"
+main = "cargo"
+description = "Rust's package manager"
+
+[[tools]]
+name = "cargo"
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "+nightly"]
+env = { CARGO_COMPLETE = "zsh" }

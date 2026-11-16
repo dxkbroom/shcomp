@@ -139,6 +139,10 @@ sha256 = "…"
 [tools.completions.zsh]
 kind = "bashcomp"
 run = ["{{ bin }}", "generate-completion", "{{ shell }}"]
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "+nightly"]
+env = { CARGO_COMPLETE = "zsh" }
 ```
 
 - `kind = "native"` is the default; `bashcomp` means the emitted zsh script
