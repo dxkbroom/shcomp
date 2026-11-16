@@ -201,19 +201,45 @@ impl Install {
         if selected.is_empty() {
             bail!("no tools are selected; add one with `shcomp add <tool>`");
         }
-        let messages = crate::cache::prefetch(&config, &registry, self.prewarm, !self.no_fetch)?;
+        let messages = crate::cache::prefetch(
+            &config,
+            &registry,
+            self.prewarm,
+            !self.no_fetch && !self.offline,
+        )?;
         for message in messages {
             println!("{message}");
         }
-        // Shim installation arrives in the zsh layer; keep this command honest
-        // until then rather than pretending a no-op installed anything.
-        bail!("shims are implemented by the shell layer");
+        let report = crate::shell::zsh::install(&config, &registry)?;
+        for path in &report.written {
+            println!("wrote {}", path.display());
+        }
+        for path in &report.removed {
+            println!("removed {}", path.display());
+        }
+        for command in &report.skipped_mise {
+            println!("skipped {command}: mise's packslip loader owns it");
+        }
+        println!(
+            "\nadd this before `compinit`:\n\n{}\n",
+            crate::shell::zsh::fpath_line(&config)?
+        );
+        Ok(())
     }
 }
 
 impl Uninstall {
     pub fn run(self) -> Result<()> {
-        bail!("uninstall is implemented by the shell layer");
+        let config = Config::load_default()?;
+        let removed = crate::shell::zsh::uninstall(&config, self.dry_run)?;
+        for path in removed {
+            if self.dry_run {
+                println!("would remove {}", path.display());
+            } else {
+                println!("removed {}", path.display());
+            }
+        }
+        Ok(())
     }
 }
 
@@ -243,7 +269,6 @@ impl Doctor {
     pub fn run(self) -> Result<()> {
         let config = Config::load_default()?;
         let registry = Registry::load(&config)?;
-        let selected = registry.selected(&config)?;
         println!(
             "config: {}",
             config.source.as_deref().map_or_else(
@@ -252,14 +277,8 @@ impl Doctor {
             )
         );
         println!("registry items: {}", registry.entries().len());
-        println!("selected tools: {}", selected.len());
-        for tool in &selected {
-            println!(
-                "  {} -> {} ({})",
-                tool.reference,
-                tool.resolved.tool.name,
-                tool.resolved.repo_slug().unwrap_or_else(|| "-".to_string())
-            );
+        for message in crate::shell::zsh::doctor(&config, &registry, self.check)? {
+            println!("{message}");
         }
         Ok(())
     }

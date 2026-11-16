@@ -33,6 +33,7 @@ env = { CARGO_TERM_COLOR = "always", "RUST_TEST_THREADS" = "1" }
 
 ["test:e2e"]
 description = "run end-to-end tests"
+depends = ["build"]
 run = "bash xtasks/test/run.sh"
 
 [render]
