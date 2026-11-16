@@ -32,6 +32,14 @@ shcomp add gh
 shcomp install
 ```
 
+`shcomp add` accepts any reference the registry understands, and `--alias`
+registers extra command names:
+
+```sh
+shcomp add cli/cli --alias github
+shcomp add eza-community/eza --alias ll --alias lt
+```
+
 `shcomp install` writes one shim per command into
 `${XDG_DATA_HOME}/shcomp/zsh/site-functions` and prints the one line to add
 before `compinit`:
@@ -151,6 +159,9 @@ the hash it fetched for a version-pinned URL.
 | `shcomp complete-word` | Probe candidates through the target shell. |
 | `shcomp schema [--registry]` | Print JSON Schema. |
 
+The generated schemas live in `schema/config.json` and `schema/registry.json`;
+`mise run render:schema` refreshes them.
+
 ## How version dispatch works
 
 The shim reads the executable the shell resolved, asks `shcomp load` for a
@@ -165,9 +176,40 @@ reports the candidates the shell produced. This is how tests prove that two
 versions complete differently:
 
 ```sh
-mise x tool@1 -- shcomp complete-word tool to
-mise x tool@2 -- shcomp complete-word tool to
+mise x gh@2.104.0 -- shcomp complete-word gh@2.104.0 gh ""
+mise x gh@2.103.3 -- shcomp complete-word gh@2.103.3 gh ""
 ```
+
+`complete-word` takes the words after the command, and `--cword` when the
+cursor is not on the last word:
+
+```sh
+shcomp complete-word gh gh co
+shcomp complete-word gh gh --lo
+```
+
+It loads the cached script, starts an interactive zsh in a controlled PTY
+harness, lets the real completion system run the vendor function, and reports
+what the shell produced. shcomp does not reimplement completion.
+
+## What ships
+
+The embedded registry covers `gh`, `chezmoi`, `uv`, `cargo`, `android`, `tv`,
+`zellij`, `herdr`, `dotnet`, `bun`, `eza`, `gradle`, and `just`. A tool can be
+added by dropping a registry item into
+`${XDG_CONFIG_HOME}/shcomp/registry/`, or by declaring one inline with
+`[[registry]]`.
+
+## Known limitations in v0.0.1
+
+- zsh only.
+- A vendor completion that needs several Tab presses to reach a different state
+  can report no candidates; `complete-word` runs one completion pass.
+- Candidate descriptions are captured when the vendor supplies them, but some
+  completion styles discard them.
+- File-only matches are reported, but fuzzy matching and menu selection are the
+  shell's job, not shcomp's.
+- `exec()` and file-reading template functions are intentionally unavailable.
 
 ## mise
 
@@ -175,6 +217,30 @@ mise x tool@2 -- shcomp complete-word tool to
 mise is present, `install` may use `mise ls --json` to prefetch URL sources for
 installed versions and `mise completion <shell> --tool <cmd>` to skip commands
 whose completions mise already owns through its packslip loader.
+
+## Roadmap
+
+The follow-up issues are the plan beyond v0.0.1:
+
+|Area|Issue|
+|---|---|
+|bash shims|#1|
+|fish shims|#2|
+|Nushell and PowerShell|#3|
+|pacman and AUR helpers|#4|
+|usage-spec broker|#5|
+|help-scraping broker|#6|
+|project config and trust|#7|
+|bash-only output adapter|#8|
+|multi-file plugins|#9|
+|post-install prewarm|#10|
+|version predicates|#11|
+|trusted `exec()` templates|#12|
+|dangling helper functions|#13|
+|multi-pass completions|#14|
+|candidate descriptions|#15|
+|URL checksum policy|#16|
+|GitLab and other hosts|#17|
 
 ## License
 
