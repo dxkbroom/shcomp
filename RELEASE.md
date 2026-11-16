@@ -58,8 +58,10 @@ The same task runs in CI on every pull request. Normal PRs have no
 1. `release:check` validates the manifest.
 2. If `release.json` is absent, or `v<version>` already exists, the run exits
    successfully without releasing (idempotent for ordinary pushes).
-3. The matrix builds the four target triples and uploads tarballs as workflow
-   artifacts.
+3. The matrix builds the Linux target triples and uploads tarballs as workflow
+   artifacts. macOS runners are not available to this repository yet; add the
+   darwin triples to `release.yml` (and `man@darwin` to `packslip-sign.yml`)
+   when they are.
 4. A fan-in job downloads every tarball, regenerates the flat usage/completion
    assets, writes `dist/SHASUMS256.txt`, and creates a **draft** release with
    `docs/releases/<version>.md`.
