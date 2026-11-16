@@ -3,9 +3,8 @@
 #USAGE arg "[triple]" help="Rust target triple (default: host)"
 set -euo pipefail
 
-task_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source-path=SCRIPTDIR
-source "$task_dir/lib.sh"
+source "${MISE_PROJECT_ROOT:?run this task with mise}/xtasks/lib/release.sh"
 
 root="$(release_root)"
 cd "$root"

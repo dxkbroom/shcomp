@@ -11,4 +11,4 @@
 "packslip:github.com/dxkbroom/shcomp" = "<version>"
 ```
 
-See [RELEASE.md](../RELEASE.md) for the release checklist.
+See [RELEASE.md](../../RELEASE.md) for the release checklist.

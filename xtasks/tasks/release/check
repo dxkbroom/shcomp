@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+#MISE description="Validate the release manifest, notes, changelog, and crate versions"
+set -euo pipefail
+
+# shellcheck source-path=SCRIPTDIR
+source "${MISE_PROJECT_ROOT:?run this task with mise}/xtasks/lib/release.sh"
+
+cd "$(release_root)"
+
+manifest="release.json"
+if [[ ! -f $manifest ]]; then
+  echo "No $manifest; nothing to check."
+  exit 0
+fi
+
+if ! jq -e '(.version | type == "string") and (.crates | type == "array")' "$manifest" >/dev/null; then
+  echo "$manifest must contain a string version and a crates array" >&2
+  exit 1
+fi
+
+version="$(release_manifest_version "$manifest")"
+if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-].+)?$ ]]; then
+  echo "invalid version in $manifest: '$version'" >&2
+  exit 1
+fi
+
+notes="docs/releases/$version.md"
+if [[ ! -s $notes ]]; then
+  echo "missing or empty release notes: $notes" >&2
+  exit 1
+fi
+
+if ! grep -Fq "## v$version" CHANGELOG.md; then
+  echo "CHANGELOG.md is missing '## v$version'" >&2
+  exit 1
+fi
+
+crates=()
+while IFS= read -r crate; do
+  crates+=("$crate")
+done < <(release_manifest_crates "$manifest")
+
+if [[ ${#crates[@]} -eq 0 ]]; then
+  echo "$manifest must list at least one crate in the crates array" >&2
+  exit 1
+fi
+
+for crate in "${crates[@]}"; do
+  if ! crate_version="$(release_crate_version "$crate" 2>/dev/null)"; then
+    echo "unknown crate in $manifest: $crate" >&2
+    exit 1
+  fi
+  if [[ $crate_version != "$version" ]]; then
+    echo "crate $crate is $crate_version but $manifest says $version" >&2
+    exit 1
+  fi
+done
+
+echo "release $version is ready: notes, changelog, and ${#crates[@]} crate(s) verified"

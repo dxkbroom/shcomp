@@ -1,18 +1,30 @@
 # Releasing shcomp
 
-Releases are cut with `mise run release:publish` on a clean `main` checkout.
-That task builds and uploads assets, then dispatches
-[`.github/workflows/packslip-sign.yml`](.github/workflows/packslip-sign.yml)
-for keyless packslip (no `pubkey` for mise). The full
-[`.github/workflows/release.yml`](.github/workflows/release.yml) matrix stays
-deactivated.
+Releases are CI-only. There is no local publish task: a release PR carries the
+version bump and the hand-written docs, and `.github/workflows/release.yml`
+turns the merge into a tag, a GitHub release, and a signed packslip bundle.
 
-## Prerequisites
+The full matrix is active in `.github/workflows/release.yml`. Keyless
+[`packslip-sign.yml`](.github/workflows/packslip-sign.yml) runs after the
+release assets are uploaded and publishes the signed bundle.
 
-- Clean git tree on `main`, push access, `gh` authenticated
-- Version in `Cargo.toml` already bumped to the version you will publish — the
-  task refuses a mismatch
-- Optional: extra `rustup` targets if you want more than the host triple
+## What a release PR contains
+
+1. `docs/releases/<version>.md` — hand-written, user-facing release notes.
+2. `CHANGELOG.md` — hand-written, more detailed than the release notes.
+3. `Cargo.toml` + `Cargo.lock` — the actual version bump. The tagged commit is
+   the PR merge commit, so the commit that CI tested is the commit that ships.
+4. `release.json` — the machine-readable authorization manifest:
+
+   ```json
+   {
+     "version": "0.0.1",
+     "crates": ["shcomp"]
+   }
+   ```
+
+`crates` lists the workspace crates that move with this release. `release:check`
+verifies every listed crate's version matches `version`.
 
 ## Bump the version
 
@@ -20,52 +32,42 @@ deactivated.
 mise run release:bump 0.0.2          # or: patch | minor | major
 ```
 
-The task updates `Cargo.toml` and keeps `Cargo.lock` in lockstep. Write GitHub
-release notes at `release-notes/<version>.md` (required; publish refuses to run
-without a non-empty file). Start from
-[release-notes/TEMPLATE.md](release-notes/TEMPLATE.md).
+This updates `Cargo.toml` and `Cargo.lock`. It does not publish and does not
+commit.
 
-Commit on `main` before publishing. Confirm what publish will require:
+## Validate the release PR
 
 ```sh
-mise run release:version
+mise run release:check
 ```
 
-## Dry-run (recommended)
+The check refuses to pass unless:
 
-Builds assets under `dist/` only — no tag, no `gh release`, no packslip.
+- `release.json` names a valid semver;
+- `docs/releases/<version>.md` exists and is non-empty;
+- `CHANGELOG.md` contains `## v<version>`;
+- every crate listed in `release.json` has that version in `Cargo.toml`.
 
-```sh
-git checkout main && git pull
-mise run release:publish 0.0.1 --dry-run --host-only
-ls -lh dist/
-```
+The same task runs in CI on every pull request. Normal PRs have no
+`release.json`, so the check exits successfully without doing anything.
 
-Useful flags:
+## What happens after merge
 
-| Flag | Effect |
-| --- | --- |
-| `--dry-run` | Build artifacts only |
-| `--host-only` | Only the current rustc host triple |
+`.github/workflows/release.yml` runs on `push` to `main`:
 
-## Publish
+1. `release:check` validates the manifest.
+2. If `release.json` is absent, or `v<version>` already exists, the run exits
+   successfully without releasing (idempotent for ordinary pushes).
+3. The matrix builds the four target triples and uploads tarballs as workflow
+   artifacts.
+4. A fan-in job downloads every tarball, regenerates the flat usage/completion
+   assets, writes `dist/SHASUMS256.txt`, and creates a **draft** release with
+   `docs/releases/<version>.md`.
+5. The reusable `packslip-sign.yml` workflow signs the release assets with
+   OIDC and uploads `packslip.sigstore.json`.
+6. A final job publishes the draft release.
 
-```sh
-mise run release:publish 0.0.1 --host-only   # or omit --host-only
-```
-
-The task will:
-
-1. Regenerate usage KDL, shell completions, and man page
-2. Build platform tarballs
-3. Write `dist/SHASUMS256.txt`
-4. Create annotated tag `v<ver>`, push it, and `gh release create`
-5. Dispatch `packslip-sign.yml` for that tag and wait until it is green
-
-Cross-OS triples are skipped when this host cannot build them (e.g. no Darwin
-archives from Linux). For a full matrix, run publish once per OS and attach
-missing assets with `gh release upload`, then re-run packslip-sign (or
-`gh workflow run packslip-sign.yml -f tag=…`).
+No crates are published to crates.io.
 
 ## What ships
 
@@ -80,36 +82,48 @@ shcomp/
 ```
 
 **Separate release assets** (not inside the archive): usage KDL, bash /
-zsh / fish / powershell completions, checksums, and packslip sigstore.
+zsh / fish / powershell completions, checksums, and the packslip sigstore
+bundle. Layout template: [packaging/release.toml](packaging/release.toml).
 
-Layout template: [packaging/release.toml](packaging/release.toml).
+## Install
 
-## After the release — install
+Use the packslip backend for the full experience — binary, version-matched man
+page, and shell completions:
 
-PC via packslip:
+```sh
+mise use packslip:github.com/dxkbroom/shcomp --minimum-release-age "0s"
+```
+
+Or pin a version in `mise.toml`:
 
 ```toml
 [tools]
 "packslip:github.com/dxkbroom/shcomp" = "0.0.1"
 ```
 
+The `github:` backend installs the binary only; it does not activate packslip
+completions or man pages.
+
 ## Lower-level tasks
 
-Prefer `release:publish`. For debugging a single step:
+Prefer the release PR flow. For debugging a single stage:
 
 | Task | Role |
 | --- | --- |
-| `mise run release:assets` | usage KDL + completions staged under `dist/` |
-| `mise run release:tarball [triple]` | One archive under `dist/` |
-| `mise run release:checksums` | `dist/SHASUMS256.txt` |
+| `mise run release:check` | Validate `release.json`, notes, changelog, crates |
 | `mise run release:version` | Print the current Cargo package version |
 | `mise run release:bump <target>` | Bump `Cargo.toml` and `Cargo.lock` |
+| `mise run release:assets` | Stage usage KDL + completions under `dist/` |
+| `mise run release:tarball [triple]` | One archive under `dist/` |
+| `mise run release:checksums` | `dist/SHASUMS256.txt` |
 
 ## Checklist
 
-1. Version bumped and on `main`
-2. `release-notes/<version>.md` written
-3. `mise run lint` and `mise run test` (or green CI on `main`)
-4. Dry-run with `--host-only`
-5. Real publish (`mise run release:publish` — waits on packslip-sign)
-6. Spot-check mise install (no `pubkey`)
+1. `mise run release:bump` for the next version
+2. `docs/releases/<version>.md` written
+3. `CHANGELOG.md` updated
+4. `release.json` added with the version and changed crates
+5. `mise run release:check`, `mise run lint`, and `mise run test`
+6. Open the release PR; required CI must be green
+7. Merge; wait for `release.yml` and `packslip-sign.yml`
+8. Verify `mise use packslip:github.com/dxkbroom/shcomp` in a clean directory

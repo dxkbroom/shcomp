@@ -1,6 +1,6 @@
-# Packslip release manifest template. Version and artifact paths are
-# overridden by `mise run release:publish` via CLI flags; this file documents
-# the intended resources layout.
+# Packslip release manifest template. The release workflow builds these
+# resources from `dist/` and passes the same layout to the packslip action;
+# this file documents the intended resources layout.
 #
 # See https://packslip.dev/docs/describing-releases/
 
