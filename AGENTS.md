@@ -47,6 +47,8 @@ Run `cargo fmt --all` and `mise run lint` before committing.
   paths; they do not run commands.
 - **Signatures are validated.** A generator that exits 0 and prints help is a
   failure, not a completion.
+- **Version discovery has a fallback.** Prefer the install path; a registry item
+  may declare `[tools.version] run` for tools such as `eza` and `gradle`.
 - **Do not fight mise.** Skip commands mise's packslip loader owns, and use
   uniquely named functions (`__shcomp_*`) so an overlap cannot corrupt either
   side.

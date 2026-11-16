@@ -5,5 +5,8 @@ description = "A modern replacement for ls"
 [[tools]]
 name = "eza"
 
+[tools.version]
+run = ["{{ bin }}", "--version"]
+
 [tools.completions.zsh]
 url = "https://raw.githubusercontent.com/eza-community/eza/v{{ version }}/completions/zsh/_eza"

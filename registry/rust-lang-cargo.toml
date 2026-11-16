@@ -6,5 +6,5 @@ description = "Rust's package manager"
 name = "cargo"
 
 [tools.completions.zsh]
-run = ["{{ bin }}", "+nightly"]
+run = ["cargo", "+nightly"]
 env = { CARGO_COMPLETE = "zsh" }

@@ -140,6 +140,42 @@ fn mise_version_for(bin: &Path) -> Option<String> {
     best.map(|(_, version)| version)
 }
 
+/// The version of a tool, using the install path first and a registry-declared
+/// version command second.
+pub fn version_for_tool(tool: &crate::registry::RegistryTool, bin: &Path) -> Option<String> {
+    if let Some(version) = version_for(bin) {
+        return Some(version);
+    }
+    let spec = tool.version.as_ref()?;
+    let context = TemplateContext::new(&tool.name, "zsh", bin);
+    let argv = spec
+        .run
+        .iter()
+        .map(|arg| render(arg, &context))
+        .collect::<Result<Vec<_>>>();
+    let argv = argv.ok()?;
+    let (program, rest) = argv.split_first()?;
+    let mut command = Command::new(program);
+    command.args(rest);
+    let (status, stdout, _) =
+        run_captured(command, Duration::from_secs(3), "version command").ok()?;
+    if !status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&stdout);
+    if let Some(pattern) = &spec.regex {
+        let regex = regex::Regex::new(pattern).ok()?;
+        let captures = regex.captures(&text)?;
+        return captures
+            .get(1)
+            .or_else(|| captures.get(0))
+            .map(|matched| matched.as_str().to_string());
+    }
+    text.split_whitespace()
+        .find(|word| word.contains('.') && word.chars().any(|c| c.is_ascii_digit()))
+        .map(|word| word.trim_start_matches('v').to_string())
+}
+
 /// The install root mise reports for this executable, or the path heuristic.
 pub fn root_for(bin: &Path) -> PathBuf {
     let bin = real_path(bin);
@@ -388,5 +424,41 @@ env = { TOKEN = "{{ shell }}" }
         let output =
             generate(&source, &context, Duration::from_secs(5), Path::new("/tmp")).unwrap();
         assert_eq!(output, "zsh");
+    }
+}
+
+#[cfg(test)]
+mod version_tests {
+    use super::*;
+    fn tool(spec: &str) -> crate::registry::RegistryTool {
+        toml::from_str(&format!("name = \"fake\"\n[version]\n{spec}\n")).unwrap()
+    }
+
+    fn script(body: &str) -> (tempfile::TempDir, std::path::PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("fake");
+        std::fs::write(&path, body).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        (dir, path)
+    }
+
+    #[test]
+    fn reads_the_first_version_like_word() {
+        let (_dir, bin) = script("#!/bin/sh\nprintf 'v1.2.3 [+git]\\n'\n");
+        let tool = tool("run = [\"{{ bin }}\", \"--version\"]");
+        assert_eq!(version_for_tool(&tool, &bin).as_deref(), Some("1.2.3"));
+    }
+
+    #[test]
+    fn reads_a_capture_group() {
+        let (_dir, bin) = script("#!/bin/sh\nprintf 'Gradle 9.8.0\\nBuild time: 2026\\n'\n");
+        let tool = tool(
+            "run = [\"{{ bin }}\", \"--version\"]\nregex = 'Gradle ([0-9]+\\.[0-9]+(?:\\.[0-9]+)?)'",
+        );
+        assert_eq!(version_for_tool(&tool, &bin).as_deref(), Some("9.8.0"));
     }
 }
