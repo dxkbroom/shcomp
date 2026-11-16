@@ -210,27 +210,7 @@ fn run_command(
         command.env(key, value);
     }
 
-    let mut child = command
-        .spawn()
-        .wrap_err_with(|| format!("cannot run `{}`", argv.join(" ")))?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| eyre::eyre!("generator has no stdout"))?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or_else(|| eyre::eyre!("generator has no stderr"))?;
-    let out_thread = std::thread::spawn(move || read_all(stdout));
-    let err_thread = std::thread::spawn(move || read_all(stderr));
-
-    let status = wait_timeout(&mut child, timeout, &argv.join(" "))?;
-    let stdout = out_thread
-        .join()
-        .map_err(|_| eyre::eyre!("generator stdout reader panicked"))??;
-    let stderr = err_thread
-        .join()
-        .map_err(|_| eyre::eyre!("generator stderr reader panicked"))??;
+    let (status, stdout, stderr) = run_captured(command, timeout, &argv.join(" "))?;
     let stdout = String::from_utf8(stdout).wrap_err("completion output is not UTF-8")?;
     let stderr = String::from_utf8_lossy(&stderr);
 
@@ -242,6 +222,37 @@ fn run_command(
         );
     }
     Ok(stdout)
+}
+
+/// Run a command with a timeout, capturing stdout and stderr.
+pub fn run_captured(
+    mut command: Command,
+    timeout: Duration,
+    description: &str,
+) -> Result<(std::process::ExitStatus, Vec<u8>, Vec<u8>)> {
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut child = command
+        .spawn()
+        .wrap_err_with(|| format!("cannot run `{description}`"))?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| eyre::eyre!("process has no stdout"))?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| eyre::eyre!("process has no stderr"))?;
+    let out_thread = std::thread::spawn(move || read_all(stdout));
+    let err_thread = std::thread::spawn(move || read_all(stderr));
+
+    let status = wait_timeout(&mut child, timeout, description)?;
+    let stdout = out_thread
+        .join()
+        .map_err(|_| eyre::eyre!("stdout reader panicked"))??;
+    let stderr = err_thread
+        .join()
+        .map_err(|_| eyre::eyre!("stderr reader panicked"))??;
+    Ok((status, stdout, stderr))
 }
 
 fn read_all(mut reader: impl Read) -> std::io::Result<Vec<u8>> {
