@@ -60,6 +60,18 @@
             "$ref": "#/$defs/Source"
           },
           "default": {}
+        },
+        "version": {
+          "description": "How to discover the version when the install path does not say it.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VersionSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "additionalProperties": false,
@@ -141,6 +153,30 @@
           "type": "string",
           "const": "bashcomp"
         }
+      ]
+    },
+    "VersionSpec": {
+      "type": "object",
+      "properties": {
+        "run": {
+          "description": "argv that prints the version. Executed without a shell.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "regex": {
+          "description": "A regular expression; capture group 1 is the version. Without one, the\nfirst version-looking word is used.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "run"
       ]
     }
   }

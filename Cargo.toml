@@ -7,7 +7,7 @@ description = "Manage shell completions that follow the active tool version"
 readme = "README.md"
 repository = "https://github.com/dxkbroom/shcomp"
 license = "MIT"
-include = ["/Cargo.toml", "/Cargo.lock", "/LICENSE", "/README.md", "/build.rs", "/registry/*", "/src/**/*.rs", "/src/shell/harness.zsh"]
+include = ["/Cargo.toml", "/Cargo.lock", "/LICENSE", "/README.md", "/CHANGELOG.md", "/build.rs", "/registry/*", "/src/**/*.rs", "/src/shell/harness.zsh", "/schema/*", "/completions/*", "/man/**/*"]
 
 [lib]
 name = "shcomp"

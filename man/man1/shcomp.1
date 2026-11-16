@@ -1,0 +1,200 @@
+.TH SHCOMP 1
+.SH NAME
+shcomp \- Manage shell completions that follow the active tool version
+.SH SYNOPSIS
+\fBshcomp\fR [OPTIONS] [COMMAND]
+.SH DESCRIPTION
+Manage shell completions that follow the active tool version
+.PP
+.SH OPTIONS
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.TP
+\fB\-V, \-\-version\fR
+Print version
+.SH COMMANDS
+.TP
+\fBinstall\fR
+Install and reconcile shell shims for the selected tools
+.TP
+\fBuninstall\fR
+Remove shcomp\-owned shims
+.TP
+\fBcomplete\-word\fR
+Probe completion candidates through the target shell
+.TP
+\fBdoctor\fR
+Check the configuration and installed shims
+.TP
+\fBls\fR
+List selected tools and their completion sources
+.TP
+\fBadd\fR
+Add a tool selection to the config
+.TP
+\fBclean\fR
+Remove the completion cache
+.TP
+\fBschema\fR
+Print the JSON Schema for the config or a registry item
+.TP
+\fBusage\fR
+Print the usage KDL for shcomp itself
+.TP
+\fBcompletion\fR
+Print a completion script for shcomp itself
+.SH "SHCOMP INSTALL"
+Install and reconcile shell shims for the selected tools
+.PP
+\fBUsage:\fR shcomp install [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-no\-fetch\fR
+Do not fetch URL sources
+.TP
+\fB\-\-offline\fR
+Fail instead of fetching an uncached URL source
+.TP
+\fB\-\-prewarm\fR
+Generate scripts for the active versions now
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.SH "SHCOMP UNINSTALL"
+Remove shcomp\-owned shims
+.PP
+\fBUsage:\fR shcomp uninstall [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-dry\-run\fR
+Print what would be removed without removing it
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.SH "SHCOMP COMPLETE-WORD"
+Probe completion candidates through the target shell
+.PP
+\fBUsage:\fR shcomp complete\-word [OPTIONS] <TOOL> [<WORDS>] ...
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-shell\fR \fI<SHELL>\fR
+Target shell
+.RS
+\fIDefault: \fRzsh
+.RE
+.TP
+\fB\-\-cword\fR \fI<CWORD>\fR
+Index of the word being completed; defaults to the last word
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<TOOL>\fR
+Tool reference, optionally with `@version`
+.TP
+\fB<WORDS>\fR
+Words typed so far, starting with the command
+.SH "SHCOMP DOCTOR"
+Check the configuration and installed shims
+.PP
+\fBUsage:\fR shcomp doctor [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-check\fR
+Run each generator and validate its output
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.SH "SHCOMP LS"
+List selected tools and their completion sources
+.PP
+\fBUsage:\fR shcomp ls [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-json\fR
+Machine\-readable output
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.SH "SHCOMP ADD"
+Add a tool selection to the config
+.PP
+\fBUsage:\fR shcomp add [OPTIONS] <REFERENCE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-alias\fR \fI<ALIAS>\fR
+Extra command name to register; repeat for several
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<REFERENCE>\fR
+Tool reference to add
+.SH "SHCOMP CLEAN"
+Remove the completion cache
+.PP
+\fBUsage:\fR shcomp clean [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.SH "SHCOMP SCHEMA"
+Print the JSON Schema for the config or a registry item
+.PP
+\fBUsage:\fR shcomp schema [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-registry\fR
+Print the registry\-item schema instead of the config schema
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.SH "SHCOMP USAGE"
+Print the usage KDL for shcomp itself
+.PP
+\fBUsage:\fR shcomp usage [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.SH "SHCOMP COMPLETION"
+Print a completion script for shcomp itself
+.PP
+\fBUsage:\fR shcomp completion [OPTIONS] <SHELL>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-install\fR
+Write the script where the shell looks for it
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<SHELL>\fR
+Shell to generate completions for

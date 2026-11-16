@@ -1,5 +1,8 @@
 # shcomp — v0.0.1 plan
 
+Status: implemented in v0.0.1. The stack is `foundation`, `registry`,
+`sources`, `zsh`, `complete-word`, `doctor`, `fix`, and `docs`.
+
 shcomp manages shell completions for CLIs that already know how to emit them.
 It is a broker and an orchestrator, not a completion engine: it never invents a
 flag list. It asks the tool for its completion, caches the result per active
@@ -306,6 +309,16 @@ and multi-file plugins are intentionally not registry items.
    fixtures.
 6. `feat(doctor)` — mise deference, alias/stale checks, `add`.
 7. `docs(release)` — README, AGENTS.md, rendered schemas, issues, `v0.0.1`.
+
+## Follow-up issues
+
+The v0.0.2 work is tracked in the repository issues: bash (#1), fish (#2),
+Nushell/PowerShell (#3), pacman/AUR helpers (#4), usage-spec broker (#5),
+help-scraping broker (#6), project config and trust (#7), bash-only output
+adapter (#8), multi-file plugins (#9), post-install prewarm (#10), version
+predicates (#11), trusted `exec()` templates (#12), dangling helper functions
+(#13), multi-pass completions (#14), candidate descriptions (#15), URL checksum
+policy (#16), and additional hosts (#17).
 
 ## Acceptance for v0.0.1
 
