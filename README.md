@@ -26,6 +26,24 @@ completion time and loads the matching cached script.
 
 ## Install
 
+The supported install path is packslip: it gives you the binary, the
+version-matched man page, and shell completions.
+
+```sh
+mise use packslip:github.com/dxkbroom/shcomp --minimum-release-age "0s"
+shcomp add gh
+shcomp install
+```
+
+Or pin a version in `mise.toml`:
+
+```toml
+[tools]
+"packslip:github.com/dxkbroom/shcomp" = "0.0.1"
+```
+
+For local development, build from the checkout:
+
 ```sh
 cargo install --path .
 shcomp add gh

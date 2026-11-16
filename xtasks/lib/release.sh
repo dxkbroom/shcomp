@@ -1,21 +1,28 @@
 #!/usr/bin/env bash
-# Shared helpers for xtasks/release/*. Sourced, never executed as a task.
+# Shared helpers for xtasks/tasks/release/*. Sourced, never executed as a task.
 # This file is intentionally not executable so mise does not register it.
+# Tasks locate it through ${MISE_PROJECT_ROOT}/xtasks/lib/release.sh.
 
 release_root() {
-  if [[ -n ${MISE_PROJECT_ROOT:-} ]]; then
-    printf '%s\n' "$MISE_PROJECT_ROOT"
-    return
-  fi
-  local here
-  here="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-  (cd -- "$here/../.." && pwd)
+  printf '%s\n' "${MISE_PROJECT_ROOT:?run this task with mise}"
 }
 
 release_version() {
-  local id
-  id="$(cargo pkgid shcomp)"
+  release_crate_version shcomp
+}
+
+release_crate_version() {
+  local name="$1" id
+  id="$(cargo pkgid "$name")"
   printf '%s\n' "${id##*@}"
+}
+
+release_manifest_version() {
+  jq -r '.version // empty' "$1"
+}
+
+release_manifest_crates() {
+  jq -r '.crates[]?' "$1"
 }
 
 release_host_triple() {

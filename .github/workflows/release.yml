@@ -1,34 +1,66 @@
-# Wired for later automation. Deactivated: workflow_dispatch only — do NOT
-# enable push/tags until `mise run release:publish` is retired.
-#
-# Primary path today:
-#   mise run release:publish <version>
-#
-# This workflow is a sketch of the same matrix + packslip steps so it can be
-# turned on later without rediscovering the layout.
+# CI-only releases. A release PR adds release.json, docs/releases/<version>.md,
+# a CHANGELOG entry, and the Cargo.toml/Cargo.lock bump. On merge this workflow
+# builds the matrix, creates a draft GitHub release, signs it with keyless
+# packslip, and publishes it.
 name: release
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Existing release tag to finish (e.g. v0.0.1), or leave empty"
-        required: false
-        type: string
+  push:
+    branches: [main]
 
-# Hard off-switch while the manual task owns releases. Remove these `if: false`
-# gates (and optionally add `push: tags: ['v*']`) when enabling CI publishing.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
-  noop:
-    if: false
+  check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release: ${{ steps.plan.outputs.release }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
     steps:
-      - run: echo "release workflow deactivated; use mise run release:publish"
+      - uses: actions/checkout@v7
 
-  # --- Intended future matrix. Never runs while the `if: false` gates stay. ---
+      - uses: jdx/mise-action@v5
+
+      - name: Validate release manifest
+        run: mise run release:check
+
+      - name: Plan release
+        id: plan
+        run: |
+          set -euo pipefail
+          release=false
+          version=""
+          tag=""
+          if [[ ! -f release.json ]]; then
+            echo "No release.json; skipping release."
+          else
+            version="$(jq -r '.version' release.json)"
+            tag="v$version"
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "$tag already exists; skipping release."
+            else
+              release=true
+            fi
+          fi
+          {
+            echo "release=$release"
+            echo "version=$version"
+            echo "tag=$tag"
+          } >>"$GITHUB_OUTPUT"
 
   build:
-    if: false
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -44,43 +76,93 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+
       - uses: jdx/mise-action@v5
+
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.triple }}
+
+      - name: Install cross linker
+        if: matrix.triple == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Configure cross linker
+        if: matrix.triple == 'aarch64-unknown-linux-gnu'
+        run: echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >>"$GITHUB_ENV"
+
       - run: rustup target add ${{ matrix.triple }}
+
       - run: mise run release:assets
+
       - run: mise run release:tarball ${{ matrix.triple }}
-      - uses: actions/upload-artifact@v4
+
+      - uses: actions/upload-artifact@v7
         with:
           name: shcomp-${{ matrix.triple }}
           path: dist/*.tar.gz
 
-  packslip:
-    if: false
-    needs: [build]
+  release:
+    needs: [check, build]
+    if: needs.check.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
-      attestations: write
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v4
+
+      - uses: jdx/mise-action@v5
+
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
-      - name: Stage dist/
+
+      - name: Stage release assets
         run: |
+          set -euo pipefail
           mkdir -p dist
           find artifacts -type f -name '*.tar.gz' -exec cp -t dist {} +
           mise run release:assets
-      - uses: jdx/packslip@v1
-        with:
-          artifacts: dist/shcomp-*.tar.gz
-          bin: shcomp
-          resources: |
-            cli-spec/usage=asset:dist/shcomp.usage.kdl
-            completion/bash=asset:dist/shcomp.bash
-            completion/zsh=asset:dist/shcomp.zsh
-            completion/fish=asset:dist/shcomp.fish
-            completion/powershell=asset:dist/shcomp.powershell
-            man@linux=archive:shcomp/man/man1/shcomp.1
-            man@darwin=archive:shcomp/man/man1/shcomp.1
+          mise run release:checksums
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* \
+              --draft \
+              --title "$TAG" \
+              --notes-file "docs/releases/$VERSION.md" \
+              --target "$GITHUB_SHA"
+          fi
+
+  sign:
+    needs: [check, release]
+    if: needs.check.outputs.release == 'true'
+    permissions:
+      contents: write
+      id-token: write
+    uses: ./.github/workflows/packslip-sign.yml
+    with:
+      tag: ${{ needs.check.outputs.tag }}
+
+  publish:
+    needs: [check, sign]
+    if: needs.check.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false

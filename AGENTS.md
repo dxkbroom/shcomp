@@ -17,11 +17,22 @@ engine.
 - `mise run lint` / `mise run check` - rumdl, tombi, `cargo check`
 - `mise run fmt` / `mise run format` - cargo fmt, rumdl fmt, tombi format
 - `mise run render` - regenerate usage KDL, completions, man pages, schemas
-- `mise run release:bump <target>` - bump `Cargo.toml` and `Cargo.lock`
-- `mise run release:publish <version> [--dry-run] [--host-only]` - cut a release
+- `mise run release:check` - validate `release.json`, notes, changelog, crates
+- `mise run release:bump <target>` - bump `Cargo.toml` and `Cargo.lock` for a release PR
+- `mise run release:assets` - stage usage KDL and completions under `dist/`
+- `mise run release:tarball [triple]` - build one platform tarball
+- `mise run release:checksums` - write `dist/SHASUMS256.txt`
 - `mise run bootstrap` - install the binary so `shcomp` is on `PATH`
 
 Run `cargo fmt --all` and `mise run lint` before committing.
+
+## Releasing
+
+Releases are CI-only. A release PR adds `release.json`, hand-written
+`docs/releases/<version>.md`, a `CHANGELOG.md` entry, and the `Cargo.toml` /
+`Cargo.lock` bump. After it merges, `.github/workflows/release.yml` verifies the
+manifest, builds every platform, creates the tag and draft release, signs the
+packslip bundle, and publishes. Do not publish from a local checkout.
 
 ## Layout
 
@@ -34,12 +45,14 @@ Run `cargo fmt --all` and `mise run lint` before committing.
 - `src/schema.rs` - JSON Schema output.
 - `registry/` - embedded registry items, one per workspace.
 - `e2e/` - isolated end-to-end harness and `test_*` scripts.
-- `xtasks/test/e2e` - mise task entry point for the e2e harness.
-- `xtasks/release/` - release file tasks (`bump`, `assets`, `tarball`,
-  `checksums`, `publish`); `lib.sh` is a non-executable helper.
-- `release-notes/` - GitHub release notes, one file per version.
+- `xtasks/tasks/` - file tasks (`test:e2e`, `release:*`).
+- `xtasks/lib/release.sh` - non-executable release helpers.
+- `docs/releases/` - hand-written release notes, one file per version.
+- `release.json` - release authorization manifest added by a release PR.
 - `packaging/release.toml` - packslip resource layout.
-- `.github/workflows/` - `packslip-sign.yml` plus the deactivated release matrix.
+- `.github/workflows/ci.yml` - lint, test, and release check on PRs.
+- `.github/workflows/release.yml` - build, tag, and publish after a release PR merges.
+- `.github/workflows/packslip-sign.yml` - reusable keyless packslip signing.
 - `schema/` - generated JSON Schema; do not edit by hand.
 
 ## Design rules

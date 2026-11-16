@@ -1,14 +1,24 @@
 # Keyless packslip for an existing GitHub release (OIDC / no pubkey).
 #
-# After `mise run release:publish` creates the tag + assets:
+# Called by release.yml after the draft release has all of its assets:
+#   uses: ./.github/workflows/packslip-sign.yml
+#   with:
+#     tag: v0.0.1
+#
+# Can also be run manually to backfill a release:
 #   gh workflow run packslip-sign.yml -f tag=v0.0.1
-#   # or: Actions -> packslip-sign -> Run workflow
 #
 # Does not build binaries. Downloads release assets, signs with this job's
 # OIDC identity, uploads packslip.sigstore.json (clobbers a key-signed one).
 name: packslip-sign
 
 on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Existing release tag (e.g. v0.0.1)"
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       tag:

@@ -4,7 +4,7 @@
 #MISE description="Run end-to-end tests"
 set -euo pipefail
 
-ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="${MISE_PROJECT_ROOT:?run this task with mise}"
 E2E_DIR="$ROOT/e2e"
 
 # Show help.

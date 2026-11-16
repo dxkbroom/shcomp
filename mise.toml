@@ -8,4 +8,4 @@ rust = "1.99.0"
 _.path = ["./target/debug"]
 
 [task_config]
-includes = ["tasks.toml", "xtasks"]
+includes = ["tasks.toml", "xtasks/tasks"]

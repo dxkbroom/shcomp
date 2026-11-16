@@ -2,9 +2,8 @@
 #MISE description="Stage usage KDL and completions under dist/"
 set -euo pipefail
 
-task_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source-path=SCRIPTDIR
-source "$task_dir/lib.sh"
+source "${MISE_PROJECT_ROOT:?run this task with mise}/xtasks/lib/release.sh"
 
 cd "$(release_root)"
 
