@@ -2,6 +2,7 @@
 
 pub mod cache;
 pub mod cli;
+pub mod complete;
 pub mod config;
 pub mod dirs;
 pub mod reference;

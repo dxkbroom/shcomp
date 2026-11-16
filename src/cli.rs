@@ -261,7 +261,20 @@ impl Load {
 
 impl CompleteWord {
     pub fn run(self) -> Result<()> {
-        bail!("complete-word is implemented by the harness layer");
+        let config = Config::load_default()?;
+        let registry = Registry::load(&config)?;
+        let (tool, version) = crate::complete::split_tool_version(&self.tool);
+        let request = crate::complete::Request {
+            tool,
+            version,
+            words: self.words,
+            cword: self.cword,
+            shell: self.shell,
+        };
+        for candidate in crate::complete::complete(&config, &registry, &request)? {
+            println!("{candidate}");
+        }
+        Ok(())
     }
 }
 
