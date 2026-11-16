@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Config",
+  "type": "object",
+  "properties": {
+    "tools": {
+      "description": "Tools to complete, keyed by any accepted reference (`gh`,\n`cli/cli`, `cli/cli/gh`, a repository URL, or `gh:owner/repo/tool`).",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/Selection"
+      },
+      "default": {}
+    },
+    "settings": {
+      "$ref": "#/$defs/Settings",
+      "default": {
+        "timeout": "5s",
+        "fetch": true,
+        "cache_dir": null,
+        "data_dir": null,
+        "env": {}
+      }
+    },
+    "registry": {
+      "description": "Registry items declared inline, using the registry-item schema.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RegistryItem"
+      },
+      "default": []
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "Selection": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/$defs/SelectionOptions"
+        }
+      ]
+    },
+    "SelectionOptions": {
+      "type": "object",
+      "properties": {
+        "aliases": {
+          "description": "Extra command names that should receive this tool's completion.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "disabled": {
+          "description": "Keep the selection but install nothing for it.",
+          "type": "boolean",
+          "default": false
+        },
+        "shells": {
+          "description": "Restrict this selection to these shells. Absent means every shell the\ntool supports.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "Settings": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "description": "Timeout for one generator run. Accepts `ms`, `s`, or `m` suffixes.",
+          "type": "string",
+          "default": "5s"
+        },
+        "fetch": {
+          "description": "Whether `install` may fetch `url` sources.",
+          "type": "boolean",
+          "default": true
+        },
+        "cache_dir": {
+          "description": "Override the cache directory.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "data_dir": {
+          "description": "Override the data directory (where shell shims are installed).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "env": {
+          "description": "Environment passed to generators. The process environment is used when\nthis is absent.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      },
+      "additionalProperties": false
+    },
+    "RegistryItem": {
+      "type": "object",
+      "properties": {
+        "repo": {
+          "description": "The workspace this item describes, such as `cli/cli`, a GitHub URL, or\nan SSH URL. Absent for a private item that is addressable only by tool\nname.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "main": {
+          "description": "The tool `owner/repo` resolves to. Required when the item has more\nthan one tool.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RegistryTool"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "tools"
+      ]
+    },
+    "RegistryTool": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The executable name.",
+          "type": "string"
+        },
+        "aliases": {
+          "description": "Other names typed at the prompt that should receive this completion.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "completions": {
+          "description": "Completion sources, keyed by shell.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Source"
+          },
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ]
+    },
+    "Source": {
+      "type": "object",
+      "properties": {
+        "run": {
+          "description": "argv to run. Executed without a shell.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "path": {
+          "description": "A completion file to read, usually inside the tool's install root.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "url": {
+          "description": "A completion file to fetch at install time.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "sha256": {
+          "description": "Required for embedded `url` sources; hex SHA-256 of the file.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceKind",
+          "default": "native"
+        },
+        "timeout": {
+          "description": "Per-source timeout, overriding `[settings].timeout`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "SourceKind": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "native"
+          ]
+        },
+        {
+          "description": "The script is zsh output that relies on `bashcompinit`.",
+          "type": "string",
+          "const": "bashcomp"
+        }
+      ]
+    }
+  }
+}

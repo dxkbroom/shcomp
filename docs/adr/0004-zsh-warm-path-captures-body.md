@@ -1,0 +1,3 @@
+# The zsh shim captures the vendor body instead of re-sourcing it
+
+On the first completion for a version, the shim sources the cached vendor script inside a nested function, captures the completion function the shell registered, restores its own wrapper and `compdef`, and from then on calls the captured body directly. Mise's packslip stub re-runs `mise` and re-evals the script on every Tab; that is simple but pays a fork per completion. Capturing the body makes a warm Tab fork-free, at the cost of mutating `functions`/`_comps` once at load time. A loaded script that defines unrelated helpers leaves them defined, exactly as `source` would today.

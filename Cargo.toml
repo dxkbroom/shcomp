@@ -1,0 +1,37 @@
+[package]
+name = "shcomp"
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.95"
+description = "Manage shell completions that follow the active tool version"
+readme = "README.md"
+repository = "https://github.com/dxkbroom/shcomp"
+license = "MIT"
+include = ["/Cargo.toml", "/Cargo.lock", "/LICENSE", "/README.md", "/build.rs", "/registry/*", "/src/**/*.rs"]
+
+[lib]
+name = "shcomp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "shcomp"
+path = "src/main.rs"
+
+[dependencies]
+dirs = "6"
+eyre = "0.6"
+indexmap = { version = "2", features = ["serde"] }
+schemars = { version = "1", features = ["indexmap2", "preserve_order"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tera = "2"
+toml = { version = "1", features = ["parse", "preserve_order"] }
+toml_edit = { version = "0.25", default-features = false }
+url = "2"
+usage-rs = { version = "7.0", features = ["completions"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints.rust]
+unsafe_code = "forbid"

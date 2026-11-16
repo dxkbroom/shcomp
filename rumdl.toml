@@ -1,0 +1,12 @@
+# rumdl configuration file
+
+[global]
+disable = ["MD013"]
+
+exclude = [
+  ".agents",
+  "CHANGELOG.md",
+  "LICENSE.md",
+]
+
+respect-gitignore = true
