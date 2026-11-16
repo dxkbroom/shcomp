@@ -1,0 +1,10 @@
+repo = "cli/cli"
+main = "gh"
+description = "GitHub's official command line tool"
+
+[[tools]]
+name = "gh"
+aliases = ["github"]
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "completion", "-s", "{{ shell }}"]

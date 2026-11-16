@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RegistryItem",
+  "type": "object",
+  "properties": {
+    "repo": {
+      "description": "The workspace this item describes, such as `cli/cli`, a GitHub URL, or\nan SSH URL. Absent for a private item that is addressable only by tool\nname.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "main": {
+      "description": "The tool `owner/repo` resolves to. Required when the item has more\nthan one tool.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RegistryTool"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "tools"
+  ],
+  "$defs": {
+    "RegistryTool": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The executable name.",
+          "type": "string"
+        },
+        "aliases": {
+          "description": "Other names typed at the prompt that should receive this completion.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "completions": {
+          "description": "Completion sources, keyed by shell.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Source"
+          },
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ]
+    },
+    "Source": {
+      "type": "object",
+      "properties": {
+        "run": {
+          "description": "argv to run. Executed without a shell.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "path": {
+          "description": "A completion file to read, usually inside the tool's install root.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "url": {
+          "description": "A completion file to fetch at install time.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "sha256": {
+          "description": "Required for embedded `url` sources; hex SHA-256 of the file.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceKind",
+          "default": "native"
+        },
+        "timeout": {
+          "description": "Per-source timeout, overriding `[settings].timeout`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "additionalProperties": false
+    },
+    "SourceKind": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "native"
+          ]
+        },
+        {
+          "description": "The script is zsh output that relies on `bashcompinit`.",
+          "type": "string",
+          "const": "bashcomp"
+        }
+      ]
+    }
+  }
+}

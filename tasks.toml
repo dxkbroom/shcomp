@@ -1,10 +1,9 @@
-
 [bootstrap]
 run = ["cargo install"]
 
 [clean]
-description = 'Clean build artifacts'
-run = 'cargo clean'
+description = "Clean build artifacts"
+run = "cargo clean"
 
 [build]
 alias = "b"
@@ -24,7 +23,7 @@ run = ["rumdl check", "tombi check", "cargo check --all-features"]
 
 [test]
 description = "run all tests"
-alias = 't'
+alias = "t"
 run = ["mise tasks run test:unit", "mise tasks run test:e2e --all"]
 
 ["test:unit"]
@@ -32,19 +31,21 @@ description = "run unit tests"
 run = "cargo test --all-features --workspace"
 env = { CARGO_TERM_COLOR = "always", "RUST_TEST_THREADS" = "1" }
 
+["test:e2e"]
+description = "run end-to-end tests"
+run = "bash xtasks/test/run.sh"
+
 [render]
-description = 'Run all render tasks'
+description = "Run all render tasks"
 depends = ["render:*"]
 
 ["render:usage"]
-description = 'Generate usage documentation'
+description = "Generate usage documentation"
 depends = ["build"]
-run = [
-  "shcomp usage > shcomp.usage.kdl"
-]
+run = ["shcomp usage > shcomp.usage.kdl"]
 
 ["render:completions"]
-description = 'Generate shell completions'
+description = "Generate shell completions"
 depends = ["build"]
 wait_for = ["render:usage"]
 env = { NO_COLOR = "1" }
@@ -57,10 +58,19 @@ shcomp completion fish > completions/shcomp.fish
 shcomp completion powershell > completions/shcomp.ps1
 '''
 
+["render:schema"]
+description = "Generate JSON Schema files"
+depends = ["build"]
+run = [
+  "mkdir -p schema",
+  "shcomp schema > schema/config.json",
+  "shcomp schema --registry > schema/registry.json",
+]
+
 ["render:mangen"]
-description = 'Generate man pages'
+description = "Generate man pages"
 depends = ["render:usage"]
 env = { NO_COLOR = "1" }
 run = [
   "mise x usage -- usage generate manpage --file shcomp.usage.kdl > man/man1/shcomp.1",
-  ]
+]
