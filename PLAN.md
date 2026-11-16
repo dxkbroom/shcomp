@@ -147,6 +147,8 @@ env = { CARGO_COMPLETE = "zsh" }
 
 - `kind = "native"` is the default; `bashcomp` means the emitted zsh script
   relies on `bashcompinit`.
+- A tool may declare `[tools.version]` with `run` and an optional `regex` (capture
+  group 1) for tools whose install path does not contain the version.
 - `run` is an argv array. It is executed without a shell, so no quoting or
   metacharacter expansion is needed.
 - `path` is read from disk; it is version-scoped through `{{ root }}`.

@@ -5,5 +5,9 @@ description = "A build automation tool"
 [[tools]]
 name = "gradle"
 
+[tools.version]
+run = ["{{ bin }}", "--version"]
+regex = 'Gradle ([0-9]+\.[0-9]+(?:\.[0-9]+)?)'
+
 [tools.completions.zsh]
 url = "https://raw.githubusercontent.com/gradle/gradle-completion/v{{ version }}/_gradle"

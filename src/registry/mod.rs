@@ -48,6 +48,22 @@ pub struct RegistryTool {
     /// Completion sources, keyed by shell.
     #[serde(default)]
     pub completions: IndexMap<String, Source>,
+
+    /// How to discover the version when the install path does not say it.
+    #[serde(default)]
+    pub version: Option<VersionSpec>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct VersionSpec {
+    /// argv that prints the version. Executed without a shell.
+    pub run: Vec<String>,
+
+    /// A regular expression; capture group 1 is the version. Without one, the
+    /// first version-looking word is used.
+    #[serde(default)]
+    pub regex: Option<String>,
 }
 
 impl RegistryTool {
@@ -188,6 +204,15 @@ pub fn validate_item(item: &RegistryItem, embedded: bool) -> Result<()> {
             source
                 .validate(embedded)
                 .wrap_err_with(|| format!("invalid `{shell}` source for `{}`", tool.name))?;
+        }
+        if let Some(version) = &tool.version {
+            if version.run.is_empty() {
+                bail!("`version.run` for `{}` must not be empty", tool.name);
+            }
+            if let Some(regex) = &version.regex {
+                regex::Regex::new(regex)
+                    .wrap_err_with(|| format!("invalid `version.regex` for `{}`", tool.name))?;
+            }
         }
     }
     if let Some(main) = &item.main

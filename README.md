@@ -86,6 +86,18 @@ aliases = ["github"]
 run = ["{{ bin }}", "completion", "-s", "{{ shell }}"]
 ```
 
+A tool whose version is not encoded in its install path can declare how to ask
+it, which is what version-templated URLs use:
+
+```toml
+[[tools]]
+name = "eza"
+
+[tools.version]
+run = ["{{ bin }}", "--version"]
+# regex = 'Gradle ([0-9]+\.[0-9]+(?:\.[0-9]+)?)'
+```
+
 A tool can be referred to by bare name, workspace, workspace plus tool, GitHub
 URL, SSH URL, or a host prefix:
 

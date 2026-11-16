@@ -108,7 +108,7 @@ fn context_for(
     bin: &Path,
     source: &Source,
 ) -> Result<TemplateContext> {
-    let version = source::version_for(bin);
+    let version = source::version_for_tool(&tool.resolved.tool, bin);
     if version.is_none() && wants_version(source)? {
         bail!(
             "cannot determine the version of `{}`; a manager that records install paths (mise) is needed for `{{{{ version }}}}`",

@@ -43,7 +43,7 @@ pub fn complete(config: &Config, registry: &Registry, request: &Request) -> Resu
     let command = resolved.tool.name.clone();
     let bin = source::resolve_binary(&command)?;
     if let Some(expected) = &request.version
-        && let Some(actual) = source::version_for(&bin)
+        && let Some(actual) = source::version_for_tool(&resolved.tool, &bin)
         && &actual != expected
     {
         bail!("`{command}` resolves to version {actual}, not {expected}");
