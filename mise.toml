@@ -10,6 +10,8 @@ tak = "0.0.15"
 
 [env]
 _.path = ["./target/debug"]
+FPATH = "./completions:{{env.FPATH | default(value='')}}"
+fish_complete_path = "./completions:{{env.fish_complete_path | default(value='')}}"
 
 [task_config]
 includes = ["tasks.toml", "xtasks/tasks"]
