@@ -19,6 +19,7 @@
         "cache_dir": null,
         "data_dir": null,
         "env": {},
+        "usage_bin": "usage",
         "shells": [
           "zsh",
           "fish"
@@ -114,6 +115,11 @@
             "type": "string"
           },
           "default": {}
+        },
+        "usage_bin": {
+          "description": "The `usage` executable that renders `kind = \"usage\"` sources.",
+          "type": "string",
+          "default": "usage"
         },
         "shells": {
           "description": "Shells `install` manages. Defaults to every shell shcomp supports.",
@@ -297,6 +303,11 @@
           "description": "The script is zsh output that relies on `bashcompinit`.",
           "type": "string",
           "const": "bashcomp"
+        },
+        {
+          "description": "The transport yields a usage KDL spec, and the `usage` CLI renders the\ncompletion from it (ADR-0008).",
+          "type": "string",
+          "const": "usage"
         }
       ]
     },

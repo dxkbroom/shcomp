@@ -152,6 +152,11 @@
           "description": "The script is zsh output that relies on `bashcompinit`.",
           "type": "string",
           "const": "bashcomp"
+        },
+        {
+          "description": "The transport yields a usage KDL spec, and the `usage` CLI renders the\ncompletion from it (ADR-0008).",
+          "type": "string",
+          "const": "usage"
         }
       ]
     },

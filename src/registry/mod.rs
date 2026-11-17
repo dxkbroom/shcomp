@@ -83,6 +83,9 @@ pub enum SourceKind {
     Native,
     /// The script is zsh output that relies on `bashcompinit`.
     Bashcomp,
+    /// The transport yields a usage KDL spec, and the `usage` CLI renders the
+    /// completion from it (ADR-0008).
+    Usage,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
@@ -120,15 +123,14 @@ pub struct Source {
 
 impl Source {
     pub fn kind_name(&self) -> &'static str {
-        if self.url.is_some() {
-            "url"
-        } else if self.path.is_some() {
-            "path"
-        } else {
-            match self.kind {
-                SourceKind::Native => "run",
-                SourceKind::Bashcomp => "bashcomp",
-            }
+        match (self.kind, self.url.is_some(), self.path.is_some()) {
+            (SourceKind::Usage, true, _) => "url:usage",
+            (SourceKind::Usage, false, true) => "path:usage",
+            (SourceKind::Usage, false, false) => "run:usage",
+            (_, true, _) => "url",
+            (_, false, true) => "path",
+            (SourceKind::Bashcomp, false, false) => "bashcomp",
+            _ => "run",
         }
     }
 

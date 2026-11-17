@@ -109,6 +109,9 @@ documented; `mise run perf:docs` regenerates that snapshot.
   (`__shcomp_*`) so an overlap cannot corrupt either side.
 - **shcomp completes itself.** `install` always writes `_shcomp`; it is an
   implicit selection, never a config entry.
+- **Spec sources broker `usage`, they do not parse specs.** `kind = "usage"`
+  hands the KDL to the `usage` CLI with a binary-scoped cache key (ADR-0008).
+  A missing `usage` is an error, never a fallback to our own rendering.
 
 ## Dependencies
 

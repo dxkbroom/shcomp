@@ -205,7 +205,12 @@ pub fn generate(
     context: &TemplateContext,
     timeout: Duration,
     cache_root: &Path,
+    cache_key: &str,
+    usage_bin: &str,
 ) -> Result<String> {
+    if source.kind == crate::registry::SourceKind::Usage {
+        return generate_usage(source, context, timeout, cache_root, cache_key, usage_bin);
+    }
     if let Some(run) = &source.run {
         tracing::debug!(argv = ?run, env = ?source.env, "running generator");
         return run_command(run, source, context, timeout);
@@ -222,6 +227,89 @@ pub fn generate(
             .wrap_err_with(|| format!("completion `{url}` is not cached; run `shcomp install`"));
     }
     bail!("source has no `run`, `path`, or `url`")
+}
+
+/// Ask the `usage` CLI to render the completion from a KDL spec (ADR-0008).
+///
+/// The spec-producing command is not run here: `usage` runs it once per
+/// `--cache-key`, so a Tab pays for it only when the binary changed. `usage`
+/// must be on PATH wherever the completion runs.
+fn generate_usage(
+    source: &Source,
+    context: &TemplateContext,
+    timeout: Duration,
+    cache_root: &Path,
+    cache_key: &str,
+    usage_bin: &str,
+) -> Result<String> {
+    let mut command = Command::new(usage_bin);
+    command.args(["generate", "completion", &context.shell, &context.command]);
+
+    if let Some(run) = &source.run {
+        let argv = run
+            .iter()
+            .map(|arg| render(arg, context))
+            .collect::<Result<Vec<_>>>()
+            .wrap_err("cannot render the spec command")?;
+        // `usage` runs this through a shell later, so the argv becomes one
+        // quoted string; the env goes with it for the same reason.
+        let mut line = String::new();
+        if !source.env.is_empty() {
+            line.push_str("env");
+            for (key, value) in &source.env {
+                let value = render(value, context)
+                    .wrap_err_with(|| format!("cannot render environment variable `{key}`"))?;
+                line.push(' ');
+                line.push_str(&quote(key));
+                line.push('=');
+                line.push_str(&quote(&value));
+            }
+            line.push(' ');
+        }
+        line.push_str(
+            &argv
+                .iter()
+                .map(|arg| quote(arg))
+                .collect::<Vec<_>>()
+                .join(" "),
+        );
+        command.args(["--usage-cmd", &line]);
+        command.args(["--cache-key", cache_key]);
+    } else if let Some(path) = &source.path {
+        let path = render(path, context).wrap_err("cannot render `path`")?;
+        if !Path::new(&path).is_file() {
+            bail!("usage spec `{path}` does not exist");
+        }
+        command.args(["--file", &path]);
+    } else if let Some(url) = &source.url {
+        let url = render(url, context).wrap_err("cannot render `url`")?;
+        let cached = crate::cache::url_cache_path(cache_root, &url);
+        if !cached.is_file() {
+            bail!("usage spec `{url}` is not cached; run `shcomp install`");
+        }
+        command.args(["--file", &cached.display().to_string()]);
+    } else {
+        bail!("source has no `run`, `path`, or `url`");
+    }
+    command.args(["--usage-bin", usage_bin]);
+
+    tracing::debug!(args = ?command, "usage generate completion");
+    let (status, stdout, stderr) = run_captured(command, timeout, "usage completion generator")?;
+    if !status.success() {
+        bail!(
+            "`{usage_bin} generate completion` failed\n{}",
+            String::from_utf8_lossy(&stderr).trim()
+        );
+    }
+    let script = String::from_utf8_lossy(&stdout).into_owned();
+    if script.trim().is_empty() {
+        bail!("`{usage_bin} generate completion` produced no output");
+    }
+    Ok(script)
+}
+
+fn quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
 }
 
 fn run_command(
@@ -422,8 +510,15 @@ env = { TOKEN = "{{ shell }}" }
         )
         .unwrap();
         let context = TemplateContext::new("x", "zsh", Path::new("/bin/true"));
-        let output =
-            generate(&source, &context, Duration::from_secs(5), Path::new("/tmp")).unwrap();
+        let output = generate(
+            &source,
+            &context,
+            Duration::from_secs(5),
+            Path::new("/tmp"),
+            "test-key",
+            "usage",
+        )
+        .unwrap();
         assert_eq!(output, "zsh");
     }
 }

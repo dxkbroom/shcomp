@@ -8,6 +8,11 @@ has to act on.
 
 ### Added
 
+- `kind = "usage"` sources: a command (or file/URL) that yields a usage KDL
+  spec, rendered into a completion by the `usage` CLI with a binary-scoped
+  cache key. `[settings].usage_bin` chooses the executable; `usage` becomes a
+  runtime dependency for those tools only.
+
 - fish support: `${XDG_DATA_HOME}/shcomp/fish/completions` with one
   `fish_complete_path` line, a version-checking loader that follows a `PATH`
   switch between Tabs, and `complete-word --shell fish` through

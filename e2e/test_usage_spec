@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# A `kind = "usage"` source is rendered by the `usage` CLI from the tool's spec,
+# and the spec command runs once per binary because the cache key is versioned.
+
+require_cmd usage
+
+mkdir -p v1 v2
+cat >v1/specprint <<'SH'
+#!/bin/sh
+printf 'v1\n' >>"$SPEC_CALLS"
+printf '%s\n' \
+  'name specprint' \
+  'bin specprint' \
+  'cmd alpha help="The first command" {' \
+  '    flag --one help="One flag"' \
+  '}'
+SH
+cat >v2/specprint <<'SH'
+#!/bin/sh
+printf 'v2\n' >>"$SPEC_CALLS"
+printf '%s\n' \
+  'name specprint' \
+  'bin specprint' \
+  'cmd beta help="The second command" {' \
+  '    flag --two help="Two flags"' \
+  '}'
+SH
+chmod +x v1/specprint v2/specprint
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+specprint = true
+
+[[registry]]
+repo = "example/specprint"
+main = "specprint"
+
+[[registry.tools]]
+name = "specprint"
+
+[registry.tools.completions.zsh]
+kind = "usage"
+run = ["{{ bin }}", "--usage"]
+TOML
+
+export SPEC_CALLS="$PWD/spec-calls.log"
+export PATH="$PWD/v1:$PATH"
+
+first=$("$SHCOMP_BIN" complete-word specprint specprint "")
+printf '%s\n' "$first"
+assert_contains_text "$first" "alpha"
+assert_contains_text "$first" "The first command"
+
+# The same binary again: the rendered script is cached, so the spec command
+# must not run a second time.
+"$SHCOMP_BIN" complete-word specprint specprint "" >/dev/null
+
+PATH="$PWD/v2:$PATH" "$SHCOMP_BIN" complete-word specprint specprint "" >/dev/null
+second=$(PATH="$PWD/v2:$PATH" "$SHCOMP_BIN" complete-word specprint specprint "")
+printf '%s\n' "$second"
+assert_contains_text "$second" "beta"
+
+calls=$(wc -l <"$SPEC_CALLS")
+if [[ $calls -ne 2 ]]; then
+  fail "expected 2 spec runs (once per version), got $calls: $(cat "$SPEC_CALLS")"
+fi
+
+# The generated script is a real completion, not spec text.
+script=$(PATH="$PWD/v2:$PATH" "$SHCOMP_BIN" load --shell zsh --command specprint --bin "$PWD/v2/specprint")
+assert_file_contains "$script" "#compdef specprint"
+
+# `ls` says where the completion comes from.
+row=$("$SHCOMP_BIN" ls)
+assert_contains_text "$row" "run:usage"
+
+ok "usage specs render through the usage CLI"

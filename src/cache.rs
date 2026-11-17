@@ -103,7 +103,14 @@ pub fn load_or_generate(
         None => config.settings.timeout()?,
     };
     let context = context_for(config, tool, shell, &bin, source)?;
-    let script = source::generate(source, &context, timeout, &root)?;
+    let script = source::generate(
+        source,
+        &context,
+        timeout,
+        &root,
+        &key,
+        &config.settings.usage_bin,
+    )?;
     source::validate_script(&script, shell, source.kind)?;
     write_atomic(&cache, script.as_bytes())?;
     tracing::info!(command = %command, script = %cache.display(), "generated");

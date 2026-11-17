@@ -102,6 +102,10 @@ pub struct Settings {
     #[serde(default)]
     pub env: BTreeMap<String, String>,
 
+    /// The `usage` executable that renders `kind = "usage"` sources.
+    #[serde(default = "Settings::default_usage_bin")]
+    pub usage_bin: String,
+
     /// Shells `install` manages. Defaults to every shell shcomp supports.
     #[serde(default = "Settings::default_shells")]
     pub shells: Vec<String>,
@@ -124,6 +128,7 @@ impl Default for Settings {
             cache_dir: None,
             data_dir: None,
             env: BTreeMap::new(),
+            usage_bin: Self::default_usage_bin(),
             shells: Self::default_shells(),
             log: None,
             log_file: None,
@@ -138,6 +143,10 @@ impl Settings {
 
     fn default_fetch() -> bool {
         true
+    }
+
+    fn default_usage_bin() -> String {
+        "usage".to_string()
     }
 
     fn default_shells() -> Vec<String> {
@@ -203,6 +212,9 @@ impl Config {
                 .wrap_err_with(|| format!("invalid inline registry item #{index}"))?;
         }
 
+        if self.settings.usage_bin.trim().is_empty() {
+            bail!("`settings.usage_bin` must not be empty");
+        }
         for shell in &self.settings.shells {
             validate_shell(shell)
                 .wrap_err_with(|| format!("invalid `settings.shells` entry `{shell}`"))?;
@@ -271,7 +283,7 @@ pub fn validate_shell(shell: &str) -> Result<()> {
 
 pub fn validate_source_kind(kind: SourceKind) -> Result<()> {
     match kind {
-        SourceKind::Native | SourceKind::Bashcomp => Ok(()),
+        SourceKind::Native | SourceKind::Bashcomp | SourceKind::Usage => Ok(()),
     }
 }
 
