@@ -1,0 +1,20 @@
+#!/bin/sh
+# A stand-in for GitHub's `gh`, so the benchmark fixture never needs it
+# installed. It answers the one command the cli/cli registry item asks for with
+# a script that passes shcomp's zsh signature check.
+#
+# Builtins only: the benchmark replaces PATH with this directory, so the script
+# cannot assume `cat` or any other external command exists.
+printf '%s\n' \
+  '#compdef gh' \
+  '_gh() {' \
+  '  local -a commands' \
+  '  commands=(' \
+  "    'help:Show help for a command'" \
+  "    'issue:Manage issues'" \
+  "    'pr:Manage pull requests'" \
+  "    'repo:Manage repositories'" \
+  "    'status:Show status'" \
+  '  )' \
+  "  _describe -t commands 'gh command' commands" \
+  '}'

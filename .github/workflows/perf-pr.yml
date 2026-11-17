@@ -1,0 +1,59 @@
+name: perf-pr
+
+# Measures a pull request and compares it with the merge base, failing when an
+# instruction count rises past the gate. A chart nobody opens does not protect
+# anything; a red check on the pull request does.
+#
+# Nothing here writes to refs/notes/tak: a branch's numbers are not trunk's, and
+# a series that mixes them cannot be read.
+#
+# Until the first perf.yml run has recorded main, there is no baseline and this
+# job fails with "nothing was compared". That is deliberate — it is the same
+# failure a broken measurement produces — and it clears as soon as main has a
+# recorded commit.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      # Read only: this job builds and runs code from the pull request, so it
+      # must not hold a token that can write. The report is an artifact and the
+      # job log; there is no comment, so no write scope is needed.
+      contents: read
+    steps:
+      # The branch commit, not the synthetic merge commit the pull_request event
+      # defaults to: measuring a commit that exists only for the run attributes a
+      # number to something nobody can check out.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: jdx/mise-action@v5
+
+      - uses: jdx/tak-action@f3161f1de5a674a67a7c1c877759b4e2d552f70d # v0.1.2
+        with:
+          mode: compare
+          install: false
+          install-valgrind: true
+          runner-class: gha-ubuntu-24.04-x64-rust1.99.0
+          gate-pct: "1.0"
+          head-sha: ${{ github.event.pull_request.head.sha }}
+          comment: false
+          check: false
+          run: |
+            cargo build --release --locked
+            tak run --record

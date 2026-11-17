@@ -1,0 +1,4 @@
+#!/bin/sh
+# A stand-in for `eza`. Its registry item is a `url` source, so `ls` only needs
+# the executable to resolve; nothing here generates a completion.
+echo "eza v0.0.0"

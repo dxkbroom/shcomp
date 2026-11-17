@@ -17,6 +17,9 @@ engine.
 - `mise run lint` / `mise run check` - rumdl, tombi, `cargo check`
 - `mise run fmt` / `mise run format` - cargo fmt, rumdl fmt, tombi format
 - `mise run render` - regenerate usage KDL, completions, man pages, schemas
+- `mise run perf` - instruction-counted benchmarks; needs valgrind for counts
+- `mise run perf:record` - the same, appended to `refs/notes/tak`
+- `mise run perf:docs` - refresh `docs/perf/history.md` from the notes
 - `mise run release:check` - validate `release.json`, notes, changelog, crates
 - `mise run release:bump <target>` - bump `Cargo.toml` and `Cargo.lock` for a release PR
 - `mise run release:assets` - stage usage KDL and completions under `dist/`
@@ -34,6 +37,28 @@ Releases are CI-only. A release PR adds `release.json`, hand-written
 manifest, builds every platform, creates the tag and draft release, signs the
 packslip bundle, and publishes. Do not publish from a local checkout.
 
+## Performance
+
+`tak.toml` declares three instruction-counted subjects: `--help` as the startup
+control, `ls` for the read-only path, and `load` for the one command a Tab
+actually forks. All three run against `benchmarks/fixture`, a committed config
+and stand-in executables, with `PATH` and every shcomp directory redirected into
+the fixture, so no measurement depends on what is installed.
+
+`.github/workflows/perf.yml` records every commit on main; `perf-pr.yml`
+compares a pull request against its merge base and fails past a 1% gate.
+Absolute counts are only comparable within one runner class, so do not change
+`runner-class` in a pull request. If a layer legitimately moves a number, say so
+in the pull request and in the `tak.toml` comment for that subject.
+
+Locally, `mise run perf` without valgrind reports wall clock only and says so;
+that is expected, and it is not a substitute for the CI gate.
+
+tak keeps its measurements in git notes (`refs/notes/tak`), not in a
+directory, and has no setting to move them. `docs/perf/README.md` is where
+the store, the committed `history.md` snapshot, and the reading rules are
+documented; `mise run perf:docs` regenerates that snapshot.
+
 ## Layout
 
 - `src/cli.rs` - usage-rs CLI surface and dispatch.
@@ -50,7 +75,11 @@ packslip bundle, and publishes. Do not publish from a local checkout.
 - `docs/releases/` - hand-written release notes, one file per version.
 - `release.json` - release authorization manifest added by a release PR.
 - `packaging/release.toml` - packslip resource layout.
+- `tak.toml` - instruction-counted benchmark subjects.
+- `benchmarks/fixture/` - the config and stand-in executables the benchmarks run against.
 - `.github/workflows/ci.yml` - lint, test, and release check on PRs.
+- `.github/workflows/perf.yml` - record instruction counts for main.
+- `.github/workflows/perf-pr.yml` - compare a pull request with its merge base.
 - `.github/workflows/release.yml` - build, tag, and publish after a release PR merges.
 - `.github/workflows/packslip-sign.yml` - reusable keyless packslip signing.
 - `schema/` - generated JSON Schema; do not edit by hand.

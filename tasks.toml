@@ -21,6 +21,24 @@ description = "Lint TOML, Markdown, and Rust files"
 alias = ["check"]
 run = ["rumdl check", "tombi check", "cargo check --all-features"]
 
+[perf]
+description = "Benchmark instruction counts against the recorded baseline"
+dir = "{{config_root}}"
+run = ["cargo build --release --locked", "tak run"]
+
+["perf:record"]
+description = "Benchmark and append this commit to refs/notes/tak"
+dir = "{{config_root}}"
+run = ["cargo build --release --locked", "tak run --record"]
+
+["perf:docs"]
+description = "Refresh the committed history snapshot under docs/perf"
+dir = "{{config_root}}"
+run = [
+  "tak log > docs/perf/history.md",
+  "tak log --html docs/perf/history.html",
+]
+
 [test]
 description = "run all tests"
 alias = "t"
