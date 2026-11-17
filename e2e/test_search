@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# search covers the embedded and user registries, ranks and filters matches, and
+# answers the hidden completion endpoints.
+
+mkdir -p registry
+cat >registry/acme.toml <<'TOML'
+repo = "acme/tool"
+main = "acme"
+description = "A private tool"
+
+[[tools]]
+name = "acme"
+aliases = ["at"]
+
+[tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+export SHCOMP_REGISTRY_DIR="$PWD/registry"
+
+out=$("$SHCOMP_BIN" search acme)
+assert_contains_text "$out" "Reference"
+assert_contains_text "$out" "acme/tool/acme"
+assert_contains_text "$out" "acme (at)"
+
+bare=$("$SHCOMP_BIN" search --no-header gh)
+assert_not_contains_text "$bare" "Reference"
+assert_contains_text "$bare" "cli/cli/gh"
+
+equal=$("$SHCOMP_BIN" search --match-type equal gh)
+assert_contains_text "$equal" "cli/cli/gh"
+assert_not_contains_text "$equal" "chezmoi"
+
+contains=$("$SHCOMP_BIN" search --match-type contains hub)
+assert_contains_text "$contains" "cli/cli/gh"
+
+complete=$("$SHCOMP_BIN" search --complete gh)
+assert_contains_text "$complete" "cli/cli/gh"
+assert_contains_text "$complete" "GitHub's official command line tool"
+
+ids=$("$SHCOMP_BIN" search --complete-ids gh)
+assert_not_contains_text "$ids" "GitHub's official"
+
+json=$("$SHCOMP_BIN" search --json eza)
+assert_contains_text "$json" '"tool": "eza"'
+assert_contains_text "$json" '"repo": "eza-community/eza"'
+
+if "$SHCOMP_BIN" search zzzz-not-a-tool >/dev/null 2>&1; then
+  fail "search should exit non-zero when nothing matches"
+fi
+ok "search matching, completion endpoints, and JSON"

@@ -17,6 +17,7 @@ pub mod install;
 pub mod load;
 pub mod ls;
 pub mod schema;
+pub mod search;
 pub mod uninstall;
 pub mod usage;
 
@@ -29,6 +30,7 @@ pub use install::Install;
 pub use load::Load;
 pub use ls::Ls;
 pub use schema::Schema;
+pub use search::Search;
 pub use uninstall::Uninstall;
 pub use usage::Usage;
 
@@ -66,6 +68,9 @@ pub enum Commands {
 
     /// List selected tools and their completion sources
     Ls(Ls),
+
+    /// Search the registry for a tool to add
+    Search(Search),
 
     /// Add a tool selection to the config
     Add(Add),
@@ -110,6 +115,7 @@ impl Commands {
             Self::CompleteWord(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Doctor(command) => command.run(),
             Self::Ls(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::Search(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Add(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Clean(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Schema(command) => command.run().map(|()| ExitCode::SUCCESS),
