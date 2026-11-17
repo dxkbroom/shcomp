@@ -79,7 +79,14 @@ shcomp add cli/cli --alias github
 shcomp add eza-community/eza --alias ll --alias lt
 ```
 
-`shcomp install` writes one shim per command into
+`add` finishes the job: it writes the selection, writes the shim, fetches any
+URL source, and prints the loading line. `--no-install` writes only the
+config, `--force` replaces the selection's aliases instead of adding to them,
+and `-n/--dry-run` reports what it would do without touching anything.
+`--dry-run-code` exits 1 when there is work, which is what a script wants to
+know.
+
+`shcomp install` writes one shim per selected command, plus shcomp's own, into
 `${XDG_DATA_HOME}/shcomp/zsh/site-functions` and prints the one line to add
 before `compinit`:
 
@@ -195,12 +202,12 @@ the hash it fetched for a version-pinned URL.
 
 | Command | Purpose |
 | --- | --- |
-| `shcomp install` | Reconcile shims and fetch URL sources. |
+| `shcomp install [-n] [--json]` | Reconcile shims (including shcomp's own) and fetch URL sources. |
 | `shcomp uninstall` | Remove shcomp-owned shims. |
 | `shcomp doctor` | Sectioned checks; `--check` runs each generator, `--json` for machines, exits 1 on an error. |
 | `shcomp ls [--all] [--no-header] [--json]` | Selected tools, sources, cache state, and owner. |
 | `shcomp search [name]` | Find a reference to add; `-i` picks from a menu. |
-| `shcomp add <reference>` | Add a selection to the config. |
+| `shcomp add [-n] [--no-install] <reference>` | Add a selection and reconcile its shim. |
 | `shcomp clean` | Remove the completion cache. |
 | `shcomp complete-word` | Probe candidates through the target shell. |
 | `shcomp schema [--registry]` | Print JSON Schema. |
@@ -261,8 +268,12 @@ added by dropping a registry item into
 
 `shcomp` does not require mise and never calls it on the completion path. When
 mise is present, `install` may use `mise ls --json` to prefetch URL sources for
-installed versions and `mise completion <shell> --tool <cmd>` to skip commands
-whose completions mise already owns through its packslip loader.
+installed versions.
+
+mise is not consulted about ownership: if you selected a tool in shcomp, shcomp
+writes the shim, even when mise's packslip loader could complete it too.
+`doctor` and `ls` say when mise also provides one (`owner: shcomp+mise`), so a
+duplicate stub can be found and removed instead of silently competing.
 
 ## Roadmap
 

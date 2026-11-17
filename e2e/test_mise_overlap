@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# A command mise's packslip loader already completes must not get a shcomp shim.
+# shcomp owns completion for what the user selected: mise also providing one is
+# reported, not obeyed.
 
 mkdir -p mise-install/bin bin
 cat >mise-install/bin/fake <<'SH'
@@ -42,10 +43,13 @@ TOML
 export PATH="$PWD/bin:$PWD/mise-install/bin:$PATH"
 
 out=$("$SHCOMP_BIN" install)
-assert_contains_text "$out" "skipped fake"
-assert_not_exists "$SHCOMP_DATA_DIR/zsh/site-functions/_fake"
+assert_not_contains_text "$out" "skipped fake"
+assert_file_contains "$SHCOMP_DATA_DIR/zsh/site-functions/_fake" "#compdef fake"
 
 doctor=$("$SHCOMP_BIN" doctor)
-assert_contains_text "$doctor" "deferring to mise's packslip loader for fake"
+assert_contains_text "$doctor" "mise also completes fake"
 
-ok "mise packslip deference"
+row=$("$SHCOMP_BIN" ls --json)
+assert_contains_text "$row" '"owner": "shcomp+mise"'
+
+ok "shcomp owns the shim when mise also completes the command"

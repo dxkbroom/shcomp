@@ -77,53 +77,109 @@ fn ident(command: &str) -> String {
     format!("{sanitized}_{}", &hash[..6])
 }
 
-pub struct InstallReport {
-    pub written: Vec<PathBuf>,
-    pub removed: Vec<PathBuf>,
-    pub skipped_mise: Vec<String>,
-    pub fpath: PathBuf,
+/// What `install` did to one shim.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShimStatus {
+    Wrote,
+    UpToDate,
+    Removed,
+    WouldWrite,
+    WouldRemove,
 }
 
-pub fn install(config: &Config, registry: &Registry) -> Result<InstallReport> {
+impl ShimStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Wrote => "wrote",
+            Self::UpToDate => "up-to-date",
+            Self::Removed => "removed",
+            Self::WouldWrite => "would write",
+            Self::WouldRemove => "would remove",
+        }
+    }
+}
+
+/// One command's shim after a reconcile.
+#[derive(Debug, Clone)]
+pub struct InstallRow {
+    pub command: String,
+    pub shim: std::path::PathBuf,
+    pub status: ShimStatus,
+}
+
+#[derive(Debug, Clone)]
+pub struct InstallReport {
+    pub rows: Vec<InstallRow>,
+    pub fpath: std::path::PathBuf,
+}
+
+impl InstallReport {
+    /// The row for one command, which is how `add` reports only what it changed.
+    pub fn row(&self, command: &str) -> Option<&InstallRow> {
+        self.rows.iter().find(|row| row.command == command)
+    }
+}
+
+/// Reconcile shims for every expected command, writing only what differs.
+///
+/// A disabled selection is not expected, so its shim is removed; a command that
+/// mise also completes still gets a shim, because shcomp owns completion for
+/// what the user selected.
+pub fn install(config: &Config, registry: &Registry, dry_run: bool) -> Result<InstallReport> {
     let expected = expected_commands(registry, config)?;
     let dir = site_functions(config)?;
-    std::fs::create_dir_all(&dir)?;
+    if !dry_run {
+        std::fs::create_dir_all(&dir)?;
+    }
 
     let mut report = InstallReport {
-        written: Vec::new(),
-        removed: Vec::new(),
-        skipped_mise: Vec::new(),
+        rows: Vec::new(),
         fpath: dir.clone(),
     };
 
     for (command, aliases) in &expected {
-        if mise_owned(command) {
-            report.skipped_mise.push(command.clone());
-            let stale = shim_path(config, command)?;
-            if owned(&stale) {
-                std::fs::remove_file(&stale)?;
-                report.removed.push(stale);
-            }
-            continue;
-        }
         let path = shim_path(config, command)?;
-        write_atomic(&path, render_shim(command, aliases).as_bytes())?;
-        report.written.push(path);
+        let content = render_shim(command, aliases);
+        let status = match std::fs::read_to_string(&path) {
+            Ok(existing) if existing == content => ShimStatus::UpToDate,
+            _ if dry_run => ShimStatus::WouldWrite,
+            _ => {
+                write_atomic(&path, content.as_bytes())?;
+                ShimStatus::Wrote
+            }
+        };
+        report.rows.push(InstallRow {
+            command: command.clone(),
+            shim: path,
+            status,
+        });
     }
 
-    for entry in std::fs::read_dir(&dir)? {
-        let path = entry?.path();
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-            continue;
-        };
-        let Some(command) = name.strip_prefix('_') else {
-            continue;
-        };
-        if !owned(&path) || expected.contains_key(command) {
-            continue;
+    if dir.is_dir() {
+        for entry in std::fs::read_dir(&dir)? {
+            let path = entry?.path();
+            let Some(command) = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .and_then(|name| name.strip_prefix('_'))
+            else {
+                continue;
+            };
+            if !owned(&path) || expected.contains_key(command) {
+                continue;
+            }
+            let status = if dry_run {
+                ShimStatus::WouldRemove
+            } else {
+                std::fs::remove_file(&path)?;
+                ShimStatus::Removed
+            };
+            report.rows.push(InstallRow {
+                command: command.to_string(),
+                shim: path,
+                status,
+            });
         }
-        std::fs::remove_file(&path)?;
-        report.removed.push(path);
     }
 
     Ok(report)
@@ -228,9 +284,6 @@ pub fn doctor(config: &Config, registry: &Registry, check: bool) -> Result<Vec<F
     }
 
     for (command, aliases) in &expected {
-        if mise_owned(command) {
-            continue;
-        }
         let path = shim_path(config, command)?;
         if !path.exists() {
             findings.push(Finding::error(
@@ -313,10 +366,10 @@ pub fn doctor(config: &Config, registry: &Registry, check: bool) -> Result<Vec<F
     Ok(findings)
 }
 
-/// The selected commands whose completion mise's packslip loader provides.
+/// The selected commands whose completion mise's packslip loader also provides.
 ///
-/// This layer still defers to mise, so `install` skips them; naming them in
-/// `doctor` is how a user finds out why a shim is absent.
+/// shcomp writes its own shim for these; naming them in `doctor` is how a user
+/// finds the duplicate stub that would otherwise compete in the shell.
 pub fn mise_owned_commands(config: &Config, registry: &Registry) -> Result<Vec<String>> {
     let mut commands = Vec::new();
     for (command, _) in expected_commands(registry, config)? {

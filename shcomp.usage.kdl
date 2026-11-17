@@ -9,6 +9,8 @@ cmd install help="Install and reconcile shell shims for the selected tools" {
     flag --no-fetch help="Do not fetch URL sources"
     flag --offline help="Fail instead of fetching an uncached URL source"
     flag --prewarm help="Generate scripts for the active versions now"
+    flag "-n --dry-run" help="Print what would change without changing it"
+    flag --json help="Machine-readable output"
     flag "-h --help" help="Print help" action=help builtin=#true
 }
 cmd uninstall help="Remove shcomp-owned shims" {
@@ -77,6 +79,10 @@ cmd add help="Add a tool selection to the config" {
     flag --alias help="Extra command name to register; repeat for several" var=#true {
         arg <ALIAS>
     }
+    flag "-n --dry-run" help="Print what would change without changing anything"
+    flag --dry-run-code help="With --dry-run, exit 1 when there is something to do" requires=--dry-run
+    flag --no-install help="Write the selection but install nothing"
+    flag "-f --force" help="Replace the selection's aliases instead of adding to them"
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <REFERENCE> help="Tool reference to add"
 }
@@ -91,7 +97,6 @@ cmd usage help="Print the usage KDL for shcomp itself" {
     flag "-h --help" help="Print help" action=help builtin=#true
 }
 cmd completion help="Print a completion script for shcomp itself" {
-    flag --install help="Write the script where the shell looks for it"
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <SHELL> help="Shell to generate completions for" {
         choices bash fish nu powershell zsh

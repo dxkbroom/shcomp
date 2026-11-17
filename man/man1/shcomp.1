@@ -64,6 +64,12 @@ Fail instead of fetching an uncached URL source
 \fB\-\-prewarm\fR
 Generate scripts for the active versions now
 .TP
+\fB\-n, \-\-dry\-run\fR
+Print what would change without changing it
+.TP
+\fB\-\-json\fR
+Machine\-readable output
+.TP
 \fB\-h, \-\-help\fR
 Print help
 .SH "SHCOMP UNINSTALL"
@@ -188,6 +194,18 @@ Add a tool selection to the config
 \fB\-\-alias\fR \fI<ALIAS>\fR
 Extra command name to register; repeat for several
 .TP
+\fB\-n, \-\-dry\-run\fR
+Print what would change without changing anything
+.TP
+\fB\-\-dry\-run\-code\fR
+With \-\-dry\-run, exit 1 when there is something to do
+.TP
+\fB\-\-no\-install\fR
+Write the selection but install nothing
+.TP
+\fB\-f, \-\-force\fR
+Replace the selection's aliases instead of adding to them
+.TP
 \fB\-h, \-\-help\fR
 Print help
 \fBArguments:\fR
@@ -235,9 +253,6 @@ Print a completion script for shcomp itself
 .PP
 \fBOptions:\fR
 .PP
-.TP
-\fB\-\-install\fR
-Write the script where the shell looks for it
 .TP
 \fB\-h, \-\-help\fR
 Print help
