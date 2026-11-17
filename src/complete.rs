@@ -48,6 +48,27 @@ pub fn split_tool_version(input: &str) -> (String, Option<String>) {
     (input.to_string(), None)
 }
 
+/// Build the word list the harness completes.
+///
+/// A caller may pass the words after the command (`gh co`) or the whole line
+/// (`gh gh co`).  Accept both forms and put the canonical command in the first
+/// position, so an alias never reaches the vendor script.
+fn completion_words(command: &str, tool: &str, words: &[String]) -> Vec<String> {
+    if words.is_empty() {
+        return vec![command.to_string(), String::new()];
+    }
+    let mut all = if words[0].as_str() == command || words[0].as_str() == tool {
+        words.to_vec()
+    } else {
+        let mut all = Vec::with_capacity(words.len() + 1);
+        all.push(command.to_string());
+        all.extend(words.iter().cloned());
+        all
+    };
+    all[0] = command.to_string();
+    all
+}
+
 pub fn complete(
     config: &Config,
     registry: &Registry,
@@ -72,16 +93,7 @@ pub fn complete(
 
     let script = crate::cache::load_or_generate(config, registry, &command, "zsh", &bin)?;
 
-    let words = if request.words.is_empty() {
-        vec![command.clone(), String::new()]
-    } else {
-        // The CLI passes words starting after the tool name, so prepend the
-        // canonical command.  This also ensures the harness sees the real
-        // executable name rather than a shell alias.
-        let mut w = vec![command.clone()];
-        w.extend(request.words.clone());
-        w
-    };
+    let words = completion_words(&command, &request.tool, &request.words);
     let cword = request.cword.unwrap_or(words.len());
     if cword == 0 || cword > words.len() {
         bail!("cword must be between 1 and {}", words.len());
@@ -163,6 +175,31 @@ pub fn complete(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn words(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| value.to_string()).collect()
+    }
+
+    #[test]
+    fn accepts_words_with_or_without_the_command() {
+        assert_eq!(completion_words("gh", "gh", &[]), words(&["gh", ""]));
+        assert_eq!(
+            completion_words("gh", "gh", &words(&["co"])),
+            words(&["gh", "co"])
+        );
+        assert_eq!(
+            completion_words("gh", "gh", &words(&["gh", "co"])),
+            words(&["gh", "co"])
+        );
+        assert_eq!(
+            completion_words("gh", "cli/cli/gh", &words(&["cli/cli/gh", "co"])),
+            words(&["gh", "co"])
+        );
+        assert_eq!(
+            completion_words("gh", "gh", &words(&["-"])),
+            words(&["gh", "-"])
+        );
+    }
 
     #[test]
     fn splits_versions_without_touching_ssh() {

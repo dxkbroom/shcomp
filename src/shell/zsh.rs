@@ -34,15 +34,12 @@ pub fn render_shim(command: &str, aliases: &BTreeSet<String>) -> String {
         r#"#compdef {compdef}
 {MARKER}
 {fn_name}() {{
-  emulate -L zsh
-  # A vendor script may write an `_arguments` spec with its exclusion group
-  # unquoted, as `(--no-build-cache)'--build-cache[...]'`. zsh parses the
-  # leading `(` as a glob group, and under the default NOMATCH a word that
-  # matches nothing aborts the whole completion. Suppressing the error lets the
-  # literal word reach `_arguments`, which is what the vendor meant; without
-  # this, a completion such as gradle's fails on every flag that has a negative
-  # form, and the error belongs to the vendor, not to shcomp.
-  setopt no_nomatch
+  # A vendor script may leave an `_arguments` exclusion group unquoted
+  # (`(--no-build-cache)'--build-cache[...]'`), and zsh parses the leading
+  # `(` as a glob group.  Suppress NOMATCH locally, and do not reset the
+  # completion system's options: vendor functions calling `_arguments` need
+  # `extendedglob` and friends from `_comp_setup`.
+  setopt localoptions no_nomatch
   local bin=${{commands[{command}]-}}
   [[ -n $bin ]] || return 1
   if [[ $bin != ${{__shcomp_bin_{ident}-}} ]] || {{ [[ -n ${{__shcomp_script_{ident}-}} ]] && [[ ${{__shcomp_script_{ident}}} -ot $bin ]]; }}; then
@@ -51,10 +48,31 @@ pub fn render_shim(command: &str, aliases: &BTreeSet<String>) -> String {
     typeset -g __shcomp_bin_{ident}=$bin
     typeset -g __shcomp_script_{ident}=$script
     local saved=${{functions[{fn_name}]}}
-    __shcomp_source_{ident}() {{ source -- "$script"; }}
+    local -i before=${{compstate[nmatches]-0}}
+    __shcomp_source_{ident}() {{ source -- "$__shcomp_script_{ident}"; }}
+    __shcomp_run_{ident}() {{
+      local saved=${{functions[{fn_name}]}}
+      source -- "$__shcomp_script_{ident}"
+      functions[{fn_name}]=$saved
+    }}
     __shcomp_source_{ident}
-    local body=${{_comps[{command}]-{fn_name}}}
-    if (( ! $+functions[$body] )); then
+    if (( ${{compstate[nmatches]-0}} > before )); then
+      # A function body performs its completion while it is sourced (eza,
+      # gradle do).  Keep the source as the body so a later Tab runs it again,
+      # and restore the shim in case the script redefined its name.
+      functions[__shcomp_body_{ident}]=${{functions[__shcomp_run_{ident}]}}
+      functions[{fn_name}]=$saved
+      compdef {fn_name} {compdef}
+      return 0
+    fi
+    local body=${{_comps[{command}]-}}
+    if [[ -z $body ]] || (( ! $+functions[$body] )) || {{ [[ $body == {fn_name} ]] && [[ ${{functions[$body]}} == $saved ]] }}; then
+      body=
+    fi
+    if [[ -z $body && ${{functions[{fn_name}]}} != $saved ]]; then
+      body={fn_name}
+    fi
+    if [[ -z $body ]]; then
       functions[{fn_name}]=$saved
       compdef {fn_name} {compdef}
       return 1

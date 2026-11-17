@@ -38,7 +38,7 @@ export PATH="$PWD/bin:$PATH"
 
 # The guard lives in the shim, so a real Tab inherits it into the vendor body.
 shim="$SHCOMP_DATA_DIR/zsh/site-functions/_globby"
-assert_file_contains "$shim" "setopt no_nomatch"
+assert_file_contains "$shim" "setopt localoptions no_nomatch"
 
 # And the probe harness answers what the shim would answer: the vendor's other
 # specs still complete instead of the function dying on the glob.
