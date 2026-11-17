@@ -274,6 +274,25 @@ which is how to see what happened during a Tab — the shell swallows stderr
 there. Logs never go to stdout, so `shcomp load` and `shcomp completion` stay
 script-safe.
 
+## When a vendor completion is broken
+
+shcomp brokers completions; it does not write them. If a Tab offers nothing or
+prints an error, check the vendor script before assuming shcomp:
+
+```sh
+shcomp complete-word <command> <command> ""
+shcomp doctor --check
+```
+
+A vendor zsh script sometimes writes an `_arguments` spec with its exclusion
+group unquoted, as `(--no-build-cache)'--build-cache[…]'`. zsh reads the leading
+`(` as a glob group, and under the default `NOMATCH` a word that matches
+nothing aborts the whole completion — which is why gradle's completion failed
+on flags with a negative form. shcomp's shim sets `no_nomatch` for the vendor
+body, so the literal word reaches `_arguments` as the author intended. Other
+vendor failures are reported by `doctor --check`, which runs one real completion
+per tool and names the command that failed.
+
 ## Known limitations in v0.0.1
 
 - zsh only.

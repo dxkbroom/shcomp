@@ -49,6 +49,10 @@ setup=(
   'COLUMNS=200'
   'LINES=50'
   'setopt no_always_last_prompt'
+  # The same guard the shim sets, so a probe answers what a real Tab answers:
+  # vendor scripts that leave an `_arguments` exclusion group unquoted (gradle
+  # does) would otherwise abort here while succeeding in the installed shell.
+  'setopt no_nomatch'
 )
 local command_line
 for command_line in $setup; do

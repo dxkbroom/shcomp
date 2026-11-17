@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# A vendor zsh completion that leaves an `_arguments` exclusion group unquoted
+# must not abort the completion. gradle's does, and the guard is generic.
+
+skip_unless_cmd zsh
+
+mkdir -p bin
+cat >bin/globby <<'SH'
+#!/bin/sh
+cat <<'SCRIPT'
+#compdef globby
+_globby() {
+  _arguments \
+    (--no-cache)'--cache[Use the cache.]' \
+    '--jobs=[Set the job count]:count:'
+}
+SCRIPT
+SH
+chmod +x bin/globby
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+"example/globby" = true
+
+[[registry]]
+repo = "example/globby"
+main = "globby"
+
+[[registry.tools]]
+name = "globby"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+
+export PATH="$PWD/bin:$PATH"
+"$SHCOMP_BIN" install >/dev/null
+
+# The guard lives in the shim, so a real Tab inherits it into the vendor body.
+shim="$SHCOMP_DATA_DIR/zsh/site-functions/_globby"
+assert_file_contains "$shim" "setopt no_nomatch"
+
+# And the probe harness answers what the shim would answer: the vendor's other
+# specs still complete instead of the function dying on the glob.
+out=$("$SHCOMP_BIN" complete-word globby globby "-")
+printf '%s\n' "$out"
+assert_contains_text "$out" "--jobs"
+
+doctor=$("$SHCOMP_BIN" doctor --check)
+assert_contains_text "$doctor" "smoke completion ok"
+
+ok "a vendor glob cannot abort the completion"

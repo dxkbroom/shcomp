@@ -451,13 +451,14 @@ Each layer is green on its own and reviewable alone. The stack is bottom-up.
 
 ### Issues to file
 
-- `gradle/gradle-completion` — `_gradle` leaves exclusion groups such as
-  `(--no-build-cache)` unquoted, so zsh's default `NOMATCH` aborts the function
-  before `_arguments` runs.
-- shcomp — gradle completion aborts; the shim guard, the diagnosis, and the
+- Filed: `gradle/gradle-completion` #273 — `_gradle` leaves exclusion groups
+  such as `(--no-build-cache)` unquoted, so zsh's default `NOMATCH` aborts the
+  function before `_arguments` runs.
+- Filed: shcomp #35 — the diagnosis, the shim guard, the probe guard, and the
   upstream link.
-- shcomp — fish zero-fork experiment: source the vendor script in-process,
-  guarded by an e2e test that proves no helper leaks into the session.
+- To file: shcomp — fish zero-fork experiment: source the vendor script
+  in-process, guarded by an e2e test that proves no helper leaks into the
+  session.
 
 ### Acceptance for v0.1.0
 

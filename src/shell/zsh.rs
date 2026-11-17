@@ -35,6 +35,14 @@ pub fn render_shim(command: &str, aliases: &BTreeSet<String>) -> String {
 {MARKER}
 {fn_name}() {{
   emulate -L zsh
+  # A vendor script may write an `_arguments` spec with its exclusion group
+  # unquoted, as `(--no-build-cache)'--build-cache[...]'`. zsh parses the
+  # leading `(` as a glob group, and under the default NOMATCH a word that
+  # matches nothing aborts the whole completion. Suppressing the error lets the
+  # literal word reach `_arguments`, which is what the vendor meant; without
+  # this, a completion such as gradle's fails on every flag that has a negative
+  # form, and the error belongs to the vendor, not to shcomp.
+  setopt no_nomatch
   local bin=${{commands[{command}]-}}
   [[ -n $bin ]] || return 1
   if [[ $bin != ${{__shcomp_bin_{ident}-}} ]] || {{ [[ -n ${{__shcomp_script_{ident}-}} ]] && [[ ${{__shcomp_script_{ident}}} -ot $bin ]]; }}; then
@@ -331,10 +339,13 @@ pub fn doctor(config: &Config, registry: &Registry, check: bool) -> Result<Vec<F
             match source::resolve_binary(command) {
                 Ok(bin) => {
                     match crate::cache::load_or_generate(config, registry, command, "zsh", &bin) {
-                        Ok(script) => findings.push(Finding::ok(
-                            "zsh",
-                            format!("{command}: generator ok ({})", script.display()),
-                        )),
+                        Ok(script) => {
+                            findings.push(Finding::ok(
+                                "zsh",
+                                format!("{command}: generator ok ({})", script.display()),
+                            ));
+                            findings.push(smoke(config, registry, command));
+                        }
                         Err(error) => findings.push(Finding::error(
                             "zsh",
                             format!("{command}: generator failed: {error}"),
@@ -372,6 +383,41 @@ pub fn doctor(config: &Config, registry: &Registry, check: bool) -> Result<Vec<F
     }
 
     Ok(findings)
+}
+
+/// Ask the real completion system for one candidate, so a vendor script that
+/// dies inside a completion is reported rather than silently offering nothing.
+///
+/// The failure this catches is the vendor's, not shcomp's: an unquoted glob or
+/// a helper that does not exist. The shim guards the first (gradle's case);
+/// anything else shows up here as an error or an empty answer.
+fn smoke(config: &Config, registry: &Registry, command: &str) -> Finding {
+    let request = crate::complete::Request {
+        tool: command.to_string(),
+        version: None,
+        words: vec![command.to_string(), String::new()],
+        cword: None,
+        shell: "zsh".to_string(),
+    };
+    match crate::complete::complete(config, registry, &request) {
+        Ok(candidates) if candidates.is_empty() => Finding::warn(
+            "zsh",
+            format!(
+                "{command}: smoke completion returned nothing; the vendor completion may be broken (run `shcomp complete-word {command} {command} \"\"`)"
+            ),
+        ),
+        Ok(candidates) => Finding::ok(
+            "zsh",
+            format!(
+                "{command}: smoke completion ok ({} candidate(s))",
+                candidates.len()
+            ),
+        ),
+        Err(error) => Finding::error(
+            "zsh",
+            format!("{command}: smoke completion failed: {error}"),
+        ),
+    }
 }
 
 /// The selected commands whose completion mise's packslip loader also provides.
