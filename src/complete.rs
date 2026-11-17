@@ -51,21 +51,28 @@ pub fn complete(config: &Config, registry: &Registry, request: &Request) -> Resu
 
     let script = crate::cache::load_or_generate(config, registry, &command, "zsh", &bin)?;
 
-    let mut words = if request.words.is_empty() {
+    let words = if request.words.is_empty() {
         vec![command.clone(), String::new()]
     } else {
-        request.words.clone()
+        // The CLI passes words starting after the tool name, so prepend the
+        // canonical command.  This also ensures the harness sees the real
+        // executable name rather than a shell alias.
+        let mut w = vec![command.clone()];
+        w.extend(request.words.clone());
+        w
     };
-    // The harness completes the canonical command, not a shell alias.
-    if let Some(first) = words.first_mut() {
-        *first = command.clone();
-    }
     let cword = request.cword.unwrap_or(words.len());
     if cword == 0 || cword > words.len() {
         bail!("cword must be between 1 and {}", words.len());
     }
     let mut line = words[..cword].join(" ");
-    if words[cword - 1].is_empty() {
+    // The harness needs a trailing space so the Tab key triggers completion.
+    // When the last word is empty, the join already produced a trailing space.
+    // When the last word is the command itself (cword == 1), we need a trailing
+    // space to start subcommand completion. For any other non-empty word, we
+    // must not add a trailing space, so zsh completes the current word (flags
+    // for "-", filtered subcommands for "ap", etc.).
+    if words[cword - 1].is_empty() || cword == 1 {
         line.push(' ');
     }
     if line.contains('\n') {
