@@ -4,9 +4,7 @@ description = "Manage shell completions that follow the active tool version"
 
 [[tools]]
 name = "shcomp"
+shells = ["zsh", "fish"]
 
-[tools.completions.zsh]
-run = ["{{ bin }}", "completion", "{{ shell }}"]
-
-[tools.completions.fish]
+[tools.completions]
 run = ["{{ bin }}", "completion", "{{ shell }}"]

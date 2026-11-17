@@ -166,7 +166,7 @@ fn rows(config: &Config, registry: &Registry, all: bool) -> Result<Vec<Row>> {
             source: preferred_shell(&tool)
                 .and_then(|shell| tool.resolved.tool.source(shell))
                 .map_or("none".to_string(), |source| source.kind_name().to_string()),
-            shells: tool.resolved.tool.completions.keys().cloned().collect(),
+            shells: tool.resolved.tool.completed_shells().into_iter().collect(),
             cache,
             script,
             key,
@@ -208,7 +208,7 @@ fn cache_state(
     let Ok(bin) = crate::source::resolve_binary(command) else {
         return (CacheState::Missing, None, None);
     };
-    let Ok(key) = crate::cache::key_for(&bin, source, shell) else {
+    let Ok(key) = crate::cache::key_for(&bin, &source, shell) else {
         return (CacheState::Missing, None, None);
     };
     let Ok(path) = crate::cache::script_cache_path(&root, shell, command, &key) else {

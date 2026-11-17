@@ -45,9 +45,15 @@ pub struct RegistryTool {
     #[serde(default)]
     pub aliases: Vec<String>,
 
-    /// Completion sources, keyed by shell.
+    /// The shells the upstream tool provides completions for, even if shcomp
+    /// does not manage a subset yet (e.g. `bash`, `nu`, `pwsh`). Used for
+    /// advertising and validation; `completions` provides the actual recipes.
     #[serde(default)]
-    pub completions: IndexMap<String, Source>,
+    pub shells: Vec<String>,
+
+    /// Completion sources: a shared default that per-shell entries inherit from.
+    #[serde(default)]
+    pub completions: Completions,
 
     /// How to discover the version when the install path does not say it.
     #[serde(default)]
@@ -67,8 +73,26 @@ pub struct VersionSpec {
 }
 
 impl RegistryTool {
-    pub fn source(&self, shell: &str) -> Option<&Source> {
-        self.completions.get(shell)
+    /// Resolve the effective source for a shell by merging the shared default
+    /// with any per-shell override. Returns `None` when no recipe exists.
+    pub fn source(&self, shell: &str) -> Option<Source> {
+        self.completions.resolve(shell)
+    }
+
+    /// The shells for which a completion recipe is available (either from the
+    /// shared default or a per-shell override).
+    pub fn completed_shells(&self) -> BTreeSet<String> {
+        let mut set = BTreeSet::new();
+        if self.completions.has_default() {
+            // Default applies to every shell declared in `shells`
+            for s in &self.shells {
+                set.insert(s.clone());
+            }
+        }
+        for shell in self.completions.shells.keys() {
+            set.insert(shell.clone());
+        }
+        set
     }
 
     pub fn command_names(&self) -> impl Iterator<Item = &str> {
@@ -182,6 +206,159 @@ fn validate_sha256(value: &str) -> Result<()> {
     Ok(())
 }
 
+/// Completion sources for a tool: a shared default that per-shell entries
+/// inherit from, plus per-shell overrides.
+///
+/// In TOML, the shared default lives at `[tools.completions]` and per-shell
+/// overrides at `[tools.completions.<shell>]`. A per-shell entry can be empty
+/// to inherit the default entirely, or provide partial fields that merge with
+/// it (override wins for `run`/`path`/`url`; `env` merges; `kind`/`timeout`
+/// override when present).
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+pub struct Completions {
+    /// Shared default: argv to run. If present, applies to every shell listed
+    /// in `tools.shells` that does not have its own override.
+    #[serde(default)]
+    pub run: Option<Vec<String>>,
+
+    /// Shared default: a completion file path.
+    #[serde(default)]
+    pub path: Option<String>,
+
+    /// Shared default: a URL to fetch at install time.
+    #[serde(default)]
+    pub url: Option<String>,
+
+    /// Shared default: SHA-256 for a URL source.
+    #[serde(default)]
+    pub sha256: Option<String>,
+
+    /// Shared default: environment variables for `run`.
+    #[serde(default)]
+    pub env: BTreeMap<String, String>,
+
+    /// Shared default: source kind.
+    #[serde(default)]
+    pub kind: SourceKind,
+
+    /// Shared default: per-source timeout.
+    #[serde(default)]
+    pub timeout: Option<String>,
+
+    /// Per-shell overrides, keyed by shell name. Captured via flatten so that
+    /// `[tools.completions.zsh]` becomes `shells["zsh"]`.
+    #[serde(flatten, default)]
+    pub shells: IndexMap<String, SourceOverride>,
+}
+
+impl Completions {
+    /// Returns `true` when the shared default has a transport (`run`, `path`,
+    /// or `url`) and can be inherited by shells.
+    pub fn has_default(&self) -> bool {
+        self.run.is_some() || self.path.is_some() || self.url.is_some()
+    }
+
+    /// Resolve the effective source for a shell by merging the shared default
+    /// with any per-shell override.
+    pub fn resolve(&self, shell: &str) -> Option<Source> {
+        let override_src = self.shells.get(shell);
+
+        // Build the base source from the shared default
+        let base = if self.has_default() {
+            Source {
+                run: self.run.clone(),
+                path: self.path.clone(),
+                url: self.url.clone(),
+                sha256: self.sha256.clone(),
+                env: self.env.clone(),
+                kind: self.kind,
+                timeout: self.timeout.clone(),
+            }
+        } else if let Some(ov) = override_src {
+            // No default; override must be complete on its own
+            ov.to_source()?
+        } else {
+            return None;
+        };
+
+        // Merge with per-shell override, if present
+        if let Some(ov) = override_src {
+            Some(ov.merge(base))
+        } else {
+            Some(base)
+        }
+    }
+}
+
+/// A partial source that merges with a base `Source`. All fields are optional;
+/// `None` means "inherit from the base".
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
+pub struct SourceOverride {
+    #[serde(default)]
+    pub run: Option<Vec<String>>,
+
+    #[serde(default)]
+    pub path: Option<String>,
+
+    #[serde(default)]
+    pub url: Option<String>,
+
+    #[serde(default)]
+    pub sha256: Option<String>,
+
+    #[serde(default)]
+    pub env: BTreeMap<String, String>,
+
+    #[serde(default)]
+    pub kind: Option<SourceKind>,
+
+    #[serde(default)]
+    pub timeout: Option<String>,
+}
+
+impl SourceOverride {
+    /// Convert to a full `Source` when there is no shared default to merge with.
+    /// Returns `None` if the override has no transport.
+    fn to_source(&self) -> Option<Source> {
+        if self.run.is_none() && self.path.is_none() && self.url.is_none() {
+            return None;
+        }
+        Some(Source {
+            run: self.run.clone(),
+            path: self.path.clone(),
+            url: self.url.clone(),
+            sha256: self.sha256.clone(),
+            env: self.env.clone(),
+            kind: self.kind.unwrap_or_default(),
+            timeout: self.timeout.clone(),
+        })
+    }
+
+    /// Merge this override on top of a base source. Override fields win for
+    /// transports (`run`/`path`/`url`); `env` is merged (override keys win);
+    /// `kind` and `timeout` override when present.
+    fn merge(&self, base: Source) -> Source {
+        // Determine the transport: override wins if set, otherwise base
+        let run = self.run.clone().or(base.run);
+        let path = self.path.clone().or(base.path);
+        let url = self.url.clone().or(base.url);
+
+        // env: merge base + override (override keys win)
+        let mut env = base.env;
+        env.extend(self.env.clone());
+
+        Source {
+            run,
+            path,
+            url,
+            sha256: self.sha256.clone().or(base.sha256),
+            env,
+            kind: self.kind.unwrap_or(base.kind),
+            timeout: self.timeout.clone().or(base.timeout),
+        }
+    }
+}
+
 pub fn validate_item(item: &RegistryItem, embedded: bool) -> Result<()> {
     if item.tools.is_empty() {
         bail!("a registry item needs at least one tool");
@@ -201,11 +378,42 @@ pub fn validate_item(item: &RegistryItem, embedded: bool) -> Result<()> {
                 bail!("`{name}` is declared more than once in this item");
             }
         }
-        for (shell, source) in &tool.completions {
-            crate::config::validate_shell(shell)?;
-            source
-                .validate(embedded)
-                .wrap_err_with(|| format!("invalid `{shell}` source for `{}`", tool.name))?;
+        // Validate the shared default, if present
+        if tool.completions.has_default() {
+            let default_source = Source {
+                run: tool.completions.run.clone(),
+                path: tool.completions.path.clone(),
+                url: tool.completions.url.clone(),
+                sha256: tool.completions.sha256.clone(),
+                env: tool.completions.env.clone(),
+                kind: tool.completions.kind,
+                timeout: tool.completions.timeout.clone(),
+            };
+            default_source.validate(embedded).wrap_err_with(|| {
+                format!("invalid default completion source for `{}`", tool.name)
+            })?;
+        }
+        // Validate per-shell overrides and resolved sources
+        for shell in &tool.shells {
+            crate::config::validate_shell(shell).wrap_err_with(|| {
+                format!(
+                    "invalid shell `{shell}` in `tools.shells` for `{}`",
+                    tool.name
+                )
+            })?;
+        }
+        for (shell, _override) in &tool.completions.shells {
+            crate::config::validate_shell(shell).wrap_err_with(|| {
+                format!("invalid shell `{shell}` in completions for `{}`", tool.name)
+            })?;
+        }
+        // Validate the resolved source for each shell that has one
+        for shell in tool.completed_shells() {
+            if let Some(resolved) = tool.source(&shell) {
+                resolved.validate(embedded).wrap_err_with(|| {
+                    format!("invalid resolved `{shell}` source for `{}`", tool.name)
+                })?;
+            }
         }
         if let Some(version) = &tool.version {
             if version.run.is_empty() {
@@ -695,7 +903,7 @@ mod embedded_tests {
             validate_item(&item, true).unwrap_or_else(|error| panic!("{name}: {error:?}"));
             for tool in &item.tools {
                 assert!(
-                    tool.completions.contains_key("zsh"),
+                    tool.source("zsh").is_some(),
                     "{name}/{} has no zsh source",
                     tool.name
                 );

@@ -53,13 +53,26 @@
           },
           "default": []
         },
-        "completions": {
-          "description": "Completion sources, keyed by shell.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/Source"
+        "shells": {
+          "description": "The shells the upstream tool provides completions for, even if shcomp\ndoes not manage a subset yet (e.g. `bash`, `nu`, `pwsh`). Used for\nadvertising and validation; `completions` provides the actual recipes.",
+          "type": "array",
+          "items": {
+            "type": "string"
           },
-          "default": {}
+          "default": []
+        },
+        "completions": {
+          "description": "Completion sources: a shared default that per-shell entries inherit from.",
+          "$ref": "#/$defs/Completions",
+          "default": {
+            "run": null,
+            "path": null,
+            "url": null,
+            "sha256": null,
+            "env": {},
+            "kind": "native",
+            "timeout": null
+          }
         },
         "version": {
           "description": "How to discover the version when the install path does not say it.",
@@ -79,11 +92,12 @@
         "name"
       ]
     },
-    "Source": {
+    "Completions": {
+      "description": "Completion sources for a tool: a shared default that per-shell entries\ninherit from, plus per-shell overrides.\n\nIn TOML, the shared default lives at `[tools.completions]` and per-shell\noverrides at `[tools.completions.<shell>]`. A per-shell entry can be empty\nto inherit the default entirely, or provide partial fields that merge with\nit (override wins for `run`/`path`/`url`; `env` merges; `kind`/`timeout`\noverride when present).",
       "type": "object",
       "properties": {
         "run": {
-          "description": "argv to run. Executed without a shell.",
+          "description": "Shared default: argv to run. If present, applies to every shell listed\nin `tools.shells` that does not have its own override.",
           "type": [
             "array",
             "null"
@@ -94,7 +108,7 @@
           "default": null
         },
         "path": {
-          "description": "A completion file to read, usually inside the tool's install root.",
+          "description": "Shared default: a completion file path.",
           "type": [
             "string",
             "null"
@@ -102,7 +116,7 @@
           "default": null
         },
         "url": {
-          "description": "A completion file to fetch at install time.",
+          "description": "Shared default: a URL to fetch at install time.",
           "type": [
             "string",
             "null"
@@ -110,7 +124,7 @@
           "default": null
         },
         "sha256": {
-          "description": "Hex SHA-256 of the fetched file. Optional for a version-pinned URL,\nwhose cache records the hash it fetched; required for a static URL in\nthe embedded registry.",
+          "description": "Shared default: SHA-256 for a URL source.",
           "type": [
             "string",
             "null"
@@ -118,7 +132,7 @@
           "default": null
         },
         "env": {
-          "description": "Environment variables for `run`, rendered as templates.",
+          "description": "Shared default: environment variables for `run`.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
@@ -126,11 +140,12 @@
           "default": {}
         },
         "kind": {
+          "description": "Shared default: source kind.",
           "$ref": "#/$defs/SourceKind",
           "default": "native"
         },
         "timeout": {
-          "description": "Per-source timeout, overriding `[settings].timeout`.",
+          "description": "Shared default: per-source timeout.",
           "type": [
             "string",
             "null"
@@ -138,7 +153,9 @@
           "default": null
         }
       },
-      "additionalProperties": false
+      "additionalProperties": {
+        "$ref": "#/$defs/SourceOverride"
+      }
     },
     "SourceKind": {
       "oneOf": [
@@ -159,6 +176,68 @@
           "const": "usage"
         }
       ]
+    },
+    "SourceOverride": {
+      "description": "A partial source that merges with a base `Source`. All fields are optional;\n`None` means \"inherit from the base\".",
+      "type": "object",
+      "properties": {
+        "run": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null
+        },
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SourceKind"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "timeout": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
     },
     "VersionSpec": {
       "type": "object",

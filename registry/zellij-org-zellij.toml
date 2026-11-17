@@ -4,9 +4,7 @@ description = "A terminal workspace with multiplexing"
 
 [[tools]]
 name = "zellij"
+shells = ["zsh", "fish", "bash", "nushell"]
 
-[tools.completions.zsh]
-run = ["{{ bin }}", "setup", "--generate-completion", "{{ shell }}"]
-
-[tools.completions.fish]
+[tools.completions]
 run = ["{{ bin }}", "setup", "--generate-completion", "{{ shell }}"]

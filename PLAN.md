@@ -121,33 +121,55 @@ description = "GitHub's official CLI"
 [[tools]]
 name = "gh"
 aliases = ["github"]
+shells = ["zsh", "fish", "bash", "pwsh"]
 
-[tools.completions.zsh]
+[tools.completions]
 run = ["{{ bin }}", "completion", "-s", "{{ shell }}"]
+```
+
+Each tool declares `shells` — the shells the upstream tool provides completions
+for, even if shcomp does not manage a subset yet (e.g. `bash`, `nu`, `pwsh`).
+This is advertising information used by `ls` and `search` to show what a tool
+supports.
+
+The `[tools.completions]` table holds a shared default source that every shell
+in `shells` inherits. When a shell needs a different recipe, a per-shell
+override at `[tools.completions.<shell>]` merges on top: the override's
+`run`/`path`/`url` replaces the default transport; `env` keys merge (override
+wins); `kind` and `timeout` override when present.
+
+```toml
+# Shared default — applies to all shells in `tools.shells`
+[tools.completions]
+run = ["{{ bin }}", "completion", "{{ shell }}"]
+
+# Per-shell override when the command differs
+[tools.completions.fish]
+run = ["{{ bin }}", "fish-completion"]
 ```
 
 A source table has exactly one of `run`, `path`, or `url`, plus optional
 `kind` and `timeout`:
 
 ```toml
-[tools.completions.zsh]
+[tools.completions]
 run = ["{{ bin }}", "completion", "{{ shell }}"]     # argv, no shell
 kind = "native"
 
-[tools.completions.zsh]
+[tools.completions]
 path = "{{ root }}/share/completions/_{{ command }}"
 
-[tools.completions.zsh]
+[tools.completions]
 url = "https://raw.githubusercontent.com/eza-community/eza/v{{ version }}/completions/zsh/_eza"
 sha256 = "…"
 
-[tools.completions.zsh]
+[tools.completions]
 kind = "bashcomp"
 run = ["{{ bin }}", "generate-completion", "{{ shell }}"]
 
-[tools.completions.zsh]
-run = ["{{ bin }}", "+nightly"]
-env = { CARGO_COMPLETE = "zsh" }
+[tools.completions]
+run = ["cargo", "+nightly"]
+env = { CARGO_COMPLETE = "{{ shell }}" }
 ```
 
 - `kind = "native"` is the default; `bashcomp` means the emitted zsh script

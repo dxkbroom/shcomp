@@ -4,10 +4,16 @@ description = "A build automation tool"
 
 [[tools]]
 name = "gradle"
+shells = ["zsh", "bash"]
 
 [tools.version]
 run = ["{{ bin }}", "--version"]
 regex = 'Gradle ([0-9]+\.[0-9]+(?:\.[0-9]+)?)'
 
-[tools.completions.zsh]
-url = "https://raw.githubusercontent.com/gradle/gradle-completion/v{{ version }}/_gradle"
+[tools.completions]
+url = "https://raw.githubusercontent.com/gradle/gradle-completion/master/_gradle"
+sha256 = "d759ef55a86a9d77ebaeab3d3e7591708c0b02ebfb782c8dc0f5337189a75fa5"
+
+[tools.completions.bash]
+url = "https://raw.githubusercontent.com/gradle/gradle-completion/master/gradle-completion.bash"
+sha256 = "b15913fd1188a96e200cb65402395d1c6f1c759db9900c4aa0c7922dd5b20cfb"

@@ -4,9 +4,7 @@ description = "A handy command runner"
 
 [[tools]]
 name = "just"
+shells = ["zsh", "fish", "bash", "nushell"]
 
-[tools.completions.zsh]
-run = ["{{ bin }}", "--completions", "{{ shell }}"]
-
-[tools.completions.fish]
+[tools.completions]
 run = ["{{ bin }}", "--completions", "{{ shell }}"]

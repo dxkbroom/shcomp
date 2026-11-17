@@ -4,6 +4,7 @@ description = "A fast, portable fuzzy finder"
 
 [[tools]]
 name = "tv"
+shells = ["zsh", "fish", "bash"]
 
-[tools.completions.zsh]
+[tools.completions]
 run = ["{{ bin }}", "completions", "{{ shell }}"]

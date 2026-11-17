@@ -4,6 +4,7 @@ description = ".NET SDK"
 
 [[tools]]
 name = "dotnet"
+shells = ["zsh", "fish", "bash", "pwsh"]
 
-[tools.completions.zsh]
+[tools.completions]
 run = ["{{ bin }}", "completions", "script", "{{ shell }}"]

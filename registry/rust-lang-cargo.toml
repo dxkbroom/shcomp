@@ -4,7 +4,8 @@ description = "Rust's package manager"
 
 [[tools]]
 name = "cargo"
+shells = ["zsh", "fish", "bash"]
 
-[tools.completions.zsh]
+[tools.completions]
 run = ["cargo", "+nightly"]
-env = { CARGO_COMPLETE = "zsh" }
+env = { CARGO_COMPLETE = "{{ shell }}" }
