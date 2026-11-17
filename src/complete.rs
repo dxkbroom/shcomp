@@ -20,6 +20,21 @@ pub struct Request {
     pub shell: String,
 }
 
+/// Result of a completion probe, including metadata for `--json` output.
+#[derive(Debug, Clone)]
+pub struct CompletionResult {
+    /// The resolved tool name
+    pub command: String,
+    /// The registry reference (e.g., `cli/cli/gh`)
+    pub reference: String,
+    /// The tool description from the registry item
+    pub description: String,
+    /// The line passed to the harness
+    pub line: String,
+    /// Completion candidates (tab-separated value and optional description)
+    pub candidates: Vec<String>,
+}
+
 /// Split a trailing `@version`, leaving SSH references alone.
 pub fn split_tool_version(input: &str) -> (String, Option<String>) {
     if let Some((base, version)) = input.rsplit_once('@')
@@ -33,7 +48,11 @@ pub fn split_tool_version(input: &str) -> (String, Option<String>) {
     (input.to_string(), None)
 }
 
-pub fn complete(config: &Config, registry: &Registry, request: &Request) -> Result<Vec<String>> {
+pub fn complete(
+    config: &Config,
+    registry: &Registry,
+    request: &Request,
+) -> Result<CompletionResult> {
     if request.shell != "zsh" {
         bail!("only zsh is supported in v0.0.1");
     }
@@ -41,6 +60,8 @@ pub fn complete(config: &Config, registry: &Registry, request: &Request) -> Resu
         .resolve_str(&request.tool)
         .wrap_err_with(|| format!("cannot complete `{}`", request.tool))?;
     let command = resolved.tool.name.clone();
+    let reference = resolved.reference.clone();
+    let description = resolved.item.description.clone().unwrap_or_default();
     let bin = source::resolve_binary(&command)?;
     if let Some(expected) = &request.version
         && let Some(actual) = source::version_for_tool(&resolved.tool, &bin)
@@ -123,14 +144,20 @@ pub fn complete(config: &Config, registry: &Registry, request: &Request) -> Resu
         if value.is_empty() || !seen.insert(value.to_string()) {
             continue;
         }
-        let description = parts.next().unwrap_or_default();
-        if description.is_empty() {
+        let desc = parts.next().unwrap_or_default();
+        if desc.is_empty() {
             candidates.push(value.to_string());
         } else {
-            candidates.push(format!("{value}\t{description}"));
+            candidates.push(format!("{value}\t{desc}"));
         }
     }
-    Ok(candidates)
+    Ok(CompletionResult {
+        command,
+        reference,
+        description,
+        line,
+        candidates,
+    })
 }
 
 #[cfg(test)]

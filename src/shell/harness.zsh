@@ -22,6 +22,72 @@ if head -n 1 -- "$script" 2>/dev/null | grep -q '^#compdef'; then
   cp -- "$script" "$tmp/functions/_$command"
 fi
 
+# Write our _describe interceptor to the fpath directory BEFORE compinit so it
+# shadows the original.  Vendor completion scripts (e.g., bun via _alternative)
+# call _describe through zsh's autoload system, which resolves names via fpath.
+# By placing our interceptor first in fpath, every autoloaded call to _describe
+# reaches us instead of the original.  compadd is a widget, not autoload, so it
+# cannot be shadowed this way — we still need the zpty-based compadd override.
+mkdir -p -- "$tmp/functions"
+cat > "$tmp/functions/_describe" << 'DESCRIBE_EOF'
+#autoload
+# _describe [options] tag description array_name [more_options]
+# Parse options to find the array name, then extract entries.
+local tag descr varname
+while [[ "$1" == -* ]]; do
+  case "$1" in
+    -t) tag=$2; shift 2;;
+    -M) shift 2;;  # skip match pattern
+    -o|-O|-1|-2|-J|-V|-x) shift;;
+    *) shift;;
+  esac
+done
+descr=$1; shift
+varname=$1; shift
+local -a __entries
+__entries=("${(@P)varname}")
+local __entry __val __desc
+for __entry in $__entries; do
+  __val=${__entry%%:*}
+  __desc=${__entry#*:}
+  if [[ $__desc != $__val ]]; then
+    __shcomp_descs[$__desc]=$__desc
+  fi
+  [[ -n ${__shcomp_seen[$__val]-} ]] || {
+    __shcomp_seen[$__val]=1
+    __shcomp_matches+=("$__val")
+  }
+  if [[ $__desc != $__val && -n $__desc ]]; then
+    __shcomp_descs[$__val]=$__desc
+  fi
+done
+return 0
+DESCRIBE_EOF
+
+# Intercept _arguments so scripts that use `_arguments ... && ret=0` (e.g., bun)
+# still reach their case block.  _arguments returns 1 when it has more work to do,
+# but in our harness the vendor function is called directly, so the && short-circuits
+# and the case block is skipped.  Our wrapper always returns 0 so the vendor
+# function continues to the case $state block.
+cat > "$tmp/functions/_arguments" << 'ARGUMENTS_EOF'
+#autoload
+__shcomp_real_arguments "$@"
+return 0
+ARGUMENTS_EOF
+cp /usr/share/zsh/functions/Completion/Base/_arguments "$tmp/functions/__shcomp_real_arguments" 2>/dev/null
+
+# Intercept _alternative so scripts that use it (e.g., bun) route through our
+# _describe/compadd interceptors.  _alternative dispatches to _describe for
+# ((...)) patterns and compadd for (...) patterns.  By saving the real
+# _alternative and re-invoking it after our overrides are loaded, those calls
+# reach our interceptors.
+cat > "$tmp/functions/_alternative" << 'ALTERNATIVE_EOF'
+#autoload
+__shcomp_real_alternative "$@"
+return $?
+ALTERNATIVE_EOF
+cp /usr/share/zsh/functions/Completion/Base/_alternative "$tmp/functions/__shcomp_real_alternative" 2>/dev/null
+
 zmodload zsh/zpty 2>/dev/null || {
   print -u2 -- "zsh/zpty is unavailable"
   exit 1
@@ -64,10 +130,23 @@ if (( ! use_fpath )); then
 fi
 zpty -w z 'typeset -ga __shcomp_matches'
 zpty -w z 'typeset -gA __shcomp_seen __shcomp_descs'
+# Force-load our _describe from fpath before any other completion function
+# (like _alternative) autoloads and pins _describe to the system path.
+# Once loaded, _describe stays as a regular function and cannot be overridden
+# by a later autoload, so _alternative will use our version.
+zpty -w z 'autoload -Uz _describe'
+# Load the real _arguments (saved as __shcomp_real_arguments) after our
+# _describe is loaded, so it resolves _describe to our version.
+zpty -w z 'autoload -Uz __shcomp_real_arguments'
+zpty -w z 'autoload -Uz _arguments'
+# Load the real _alternative (saved as __shcomp_real_alternative) after our
+# _describe is loaded, so it resolves _describe to our version.
+zpty -w z 'autoload -Uz __shcomp_real_alternative'
+zpty -w z 'autoload -Uz _alternative'
+# compadd is a completion widget, not an autoload function, so it cannot be
+# shadowed via fpath.  Define it as a regular function in the zpty shell so
+# direct compadd calls (e.g., from _alternative with (...) patterns) reach us.
 zpty -w z 'compadd() { local -a __tmp __descs __args; __args=("$@"); local -i __i=1 __n; while (( __i <= $#__args )); do case $__args[$__i] in -d) __descs=("${(@P)__args[$((__i+1))]}"); (( __i += 2 ));; -a|-A|-D|-O|-P|-S|-p|-s|-i|-I|-W|-M|-J|-V|-X|-x|-r|-R|-F|-t) (( __i += 2 ));; -*) (( __i += 1 ));; *) break;; esac; done; builtin compadd -O __tmp "$@"; __n=${#__tmp}; local __word; for (( __i = 1; __i <= __n; __i++ )); do __word=${__tmp[$__i]}; [[ -n $__word ]] || continue; [[ -n ${__shcomp_seen[$__word]-} ]] && continue; __shcomp_seen[$__word]=1; __shcomp_matches+=("$__word"); [[ -n ${__descs[$__i]-} ]] && __shcomp_descs[$__word]=${__descs[$__i]}; done }'
-# Also intercept _describe so completions that use it (e.g., gh) provide descriptions.
-# _describe splits each entry on the first colon: value:description.
-zpty -w z '_describe() { local -a __entries; local __prefix=$1; shift; local __var_name=$1; shift; __entries=("${(@P)__var_name}"); local __entry __val __desc; for __entry in $__entries; do __val=${__entry%%:*}; __desc=${__entry#*:}; if [[ $__desc != $__val ]]; then __shcomp_descs[$__desc]=$__desc; fi; [[ -n ${__shcomp_seen[$__val]-} ]] || { __shcomp_seen[$__val]=1; __shcomp_matches+=("$__val"); }; if [[ $__desc != $__val && -n $__desc ]]; then __shcomp_descs[$__val]=$__desc; fi; done; return 0 }'
 zpty -w z "__shcomp_vendor=\${_comps[${(q)command}]-_${command}}"
 zpty -w z "__shcomp_probe() { __shcomp_matches=(); __shcomp_seen=(); __shcomp_descs=(); \"\$__shcomp_vendor\"; local __after=\${_comps[${(q)command}]-}; if [[ -n \$__after && \$__after != \$__shcomp_vendor && \$__after != __shcomp_probe ]]; then \"\$__after\"; fi; local __word; for __word in \"\${__shcomp_matches[@]}\"; do print -r -- \"\$__word\"\$'\\t'\"\${__shcomp_descs[\$__word]-}\"; done > ${(q)out} 2>/dev/null; print -r -- __SHCOMP_DONE__ >> ${(q)out} }"
 zpty -w z "compdef __shcomp_probe ${(q)command}"

@@ -400,17 +400,17 @@ fn smoke(config: &Config, registry: &Registry, command: &str) -> Finding {
         shell: "zsh".to_string(),
     };
     match crate::complete::complete(config, registry, &request) {
-        Ok(candidates) if candidates.is_empty() => Finding::warn(
+        Ok(result) if result.candidates.is_empty() => Finding::warn(
             "zsh",
             format!(
                 "{command}: smoke completion returned nothing; the vendor completion may be broken (run `shcomp complete-word {command} {command} \"\"`)"
             ),
         ),
-        Ok(candidates) => Finding::ok(
+        Ok(result) => Finding::ok(
             "zsh",
             format!(
                 "{command}: smoke completion ok ({} candidate(s))",
-                candidates.len()
+                result.candidates.len()
             ),
         ),
         Err(error) => Finding::error(
