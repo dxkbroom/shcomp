@@ -98,8 +98,10 @@ Then restart the shell, or run `compinit` again.
 
 shcomp's own completion ships with it: `shcomp install` writes `_shcomp` even
 though there is no `shcomp` entry in your config. Once it is loaded,
-`shcomp add <TAB>` completes every reference the registry knows — including
-items from your own registry — with the description beside it.
+`shcomp add <TAB>` completes every tool the registry knows — including items
+from your own registry — with the description beside it. It inserts the tool
+name, because that is what `add` and `complete-word` accept; when two entries
+share a name, it inserts the full reference instead.
 `shcomp search <TAB>` and `shcomp complete-word <TAB>` use the same corpus.
 
 `shcomp ls` answers the questions you actually have about an entry: what it is

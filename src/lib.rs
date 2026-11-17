@@ -10,6 +10,7 @@ pub mod reference;
 pub mod registry;
 pub mod report;
 pub mod schema;
+pub mod search;
 pub mod shell;
 pub mod source;
 pub mod template;

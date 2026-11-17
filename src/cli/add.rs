@@ -37,12 +37,12 @@ pub struct Add {
     pub force: bool,
 }
 
-/// The completer for `add <REFERENCE>`: every reference the registry can add.
+/// The completer for `add <REFERENCE>`: every tool the registry can add.
 fn complete_reference(
     _add: &<Add as usage_rs::spec::CommandArgs>::Partial,
     ctx: &CompleteCtx<'_>,
 ) -> Vec<Candidate<'static>> {
-    crate::cli::search::candidates(ctx.prefix)
+    crate::search::candidates(ctx.prefix)
 }
 
 impl Add {

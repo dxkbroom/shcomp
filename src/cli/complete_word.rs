@@ -33,27 +33,13 @@ pub struct CompleteWord {
 
 /// The completer for `complete-word <TOOL>`.
 ///
-/// Returns only the tool name (not the full reference) so the completion list
-/// is shorter and matches what the user types.
+/// The shared candidate list inserts the tool name, which is what the command
+/// accepts; an ambiguous name falls back to the full reference.
 fn complete_tool(
     _complete_word: &<CompleteWord as usage_rs::spec::CommandArgs>::Partial,
     ctx: &CompleteCtx<'_>,
 ) -> Vec<Candidate<'static>> {
-    let candidates = crate::cli::search::candidates(ctx.prefix);
-    candidates
-        .into_iter()
-        .map(|c| {
-            // The value from search::candidates is the full reference
-            // (e.g., `cli/cli/gh`).  Extract just the tool name (the last
-            // path component) for a cleaner completion list.
-            let value = c.value;
-            Candidate {
-                value,
-                description: c.description,
-                ..Candidate::new(String::new())
-            }
-        })
-        .collect()
+    crate::search::candidates(ctx.prefix)
 }
 
 impl CompleteWord {

@@ -69,6 +69,30 @@ fn completion_words(command: &str, tool: &str, words: &[String]) -> Vec<String> 
     all
 }
 
+/// Undo the backslash escaping zsh completion descriptions use.
+///
+/// Vendor scripts write `\[env: X=\]` or `` \`--flag\` `` so zsh renders the
+/// literal character. The harness captures the raw string, so undo the escape
+/// for display while leaving Windows-style `C:\Users` alone.
+fn clean_description(description: &str) -> String {
+    let mut cleaned = String::with_capacity(description.len());
+    let mut chars = description.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            match chars.peek().copied() {
+                Some(next) if !next.is_alphanumeric() => {
+                    chars.next();
+                    cleaned.push(next);
+                }
+                _ => cleaned.push(ch),
+            }
+        } else {
+            cleaned.push(ch);
+        }
+    }
+    cleaned
+}
+
 pub fn complete(
     config: &Config,
     registry: &Registry,
@@ -156,7 +180,7 @@ pub fn complete(
         if value.is_empty() || !seen.insert(value.to_string()) {
             continue;
         }
-        let desc = parts.next().unwrap_or_default();
+        let desc = clean_description(parts.next().unwrap_or_default());
         if desc.is_empty() {
             candidates.push(value.to_string());
         } else {
@@ -199,6 +223,20 @@ mod tests {
             completion_words("gh", "gh", &words(&["-"])),
             words(&["gh", "-"])
         );
+    }
+
+    #[test]
+    fn zsh_description_escapes_are_removed() {
+        assert_eq!(
+            clean_description(r"Require \[env: UV_MANAGED_PYTHON=\]"),
+            "Require [env: UV_MANAGED_PYTHON=]"
+        );
+        assert_eq!(
+            clean_description(r"use \`--system-certs\` instead"),
+            "use `--system-certs` instead"
+        );
+        assert_eq!(clean_description(r"a\\b"), r"a\b");
+        assert_eq!(clean_description(r"C:\Users"), r"C:\Users");
     }
 
     #[test]
