@@ -259,6 +259,21 @@ added by dropping a registry item into
 `${XDG_CONFIG_HOME}/shcomp/registry/`, or by declaring one inline with
 `[[registry]]`.
 
+## Debugging
+
+`-v` raises the log level (`-vv`, `-vvv` for more), and `-q` leaves errors
+only. `SHCOMP_LOG` takes tracing directives when you want to narrow rather than
+broaden:
+
+```sh
+SHCOMP_LOG=shcomp::cache=debug shcomp ls
+```
+
+`SHCOMP_LOG_FILE` (or `[settings].log_file`) appends the same events to a file,
+which is how to see what happened during a Tab — the shell swallows stderr
+there. Logs never go to stdout, so `shcomp load` and `shcomp completion` stay
+script-safe.
+
 ## Known limitations in v0.0.1
 
 - zsh only.

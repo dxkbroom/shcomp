@@ -44,6 +44,14 @@ pub use usage::Usage;
     completion = true
 )]
 pub struct Cli {
+    /// Print more detail; repeat for more
+    #[usage(short = 'v', long, count, global)]
+    pub verbose: u8,
+
+    /// Report errors only
+    #[usage(short = 'q', long, global)]
+    pub quiet: bool,
+
     #[usage(subcommand)]
     pub command: Option<Commands>,
 }
@@ -103,11 +111,31 @@ impl Cli {
 }
 
 impl Commands {
+    /// The command's name, for tracing: one line saying what ran is the first
+    /// thing a `-v` user wants.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Install(_) => "install",
+            Self::Uninstall(_) => "uninstall",
+            Self::Load(_) => "load",
+            Self::CompleteWord(_) => "complete-word",
+            Self::Doctor(_) => "doctor",
+            Self::Ls(_) => "ls",
+            Self::Search(_) => "search",
+            Self::Add(_) => "add",
+            Self::Clean(_) => "clean",
+            Self::Schema(_) => "schema",
+            Self::Usage(_) => "usage",
+            Self::Completion(_) => "completion",
+        }
+    }
+
     /// Dispatch, and report the exit code the command asks for.
     ///
     /// Only `doctor` can fail a check without failing the process: a found
     /// problem is a result, not an error, so it exits 1 without an eyre report.
     pub fn run(self) -> Result<ExitCode> {
+        tracing::info!(command = self.name(), "dispatch");
         match self {
             Self::Install(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Uninstall(command) => command.run().map(|()| ExitCode::SUCCESS),

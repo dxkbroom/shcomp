@@ -5,6 +5,7 @@ pub mod cli;
 pub mod complete;
 pub mod config;
 pub mod dirs;
+pub mod logging;
 pub mod reference;
 pub mod registry;
 pub mod report;

@@ -33,6 +33,8 @@ sha2 = "0.10"
 tera = "2"
 toml = { version = "1", features = ["parse", "preserve_order"] }
 toml_edit = { version = "0.25", features = ["display", "parse"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 url = "2"
 usage-rs = { version = "7.0", features = ["completions"] }
 

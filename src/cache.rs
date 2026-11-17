@@ -86,6 +86,14 @@ pub fn load_or_generate(
     let key = key_for(&bin, source, shell)?;
     let root = cache_root(config)?;
     let cache = script_cache_path(&root, shell, &tool.resolved.tool.name, &key)?;
+    tracing::debug!(
+        command = %command,
+        shell,
+        bin = %bin.display(),
+        key = %key,
+        cached = cache.exists(),
+        "load"
+    );
     if cache.exists() {
         return Ok(cache);
     }
@@ -98,6 +106,7 @@ pub fn load_or_generate(
     let script = source::generate(source, &context, timeout, &root)?;
     source::validate_script(&script, shell, source.kind)?;
     write_atomic(&cache, script.as_bytes())?;
+    tracing::info!(command = %command, script = %cache.display(), "generated");
     Ok(cache)
 }
 

@@ -327,6 +327,7 @@ impl Registry {
 
         let mut merged: IndexMap<String, Entry> = IndexMap::new();
         for (layer_name, items) in layers {
+            tracing::debug!(layer = layer_name, items = items.len(), "registry layer");
             let mut seen = BTreeSet::new();
             for (item, source_path) in items {
                 validate_item(&item, layer_name == "embedded")?;
@@ -342,7 +343,7 @@ impl Registry {
                     bail!("duplicate registry item `{identity}` in {layer_name}");
                 }
                 if merged.contains_key(&identity) {
-                    eprintln!("shcomp: warning: {layer_name} overrides registry item `{identity}`");
+                    tracing::warn!(layer = layer_name, item = %identity, "registry item overridden");
                 }
                 merged.insert(
                     identity,

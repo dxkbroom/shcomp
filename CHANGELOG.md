@@ -28,8 +28,9 @@ has to act on.
 - Commands mise installed from a packslip are no longer skipped: shcomp writes
   its shim for every selected tool, and `doctor` reports the overlap so a
   duplicate mise stub can be removed.
-- A registry source may declare `kind = "usage"`, and `[settings]` gains
-  `shells`, `usage_bin`, `log`, and `log_file`.
+- A registry source may declare `kind = "usage"` (later in this release),
+  `[settings]` gains `log` and `log_file`, and `-v`/`-q`, `SHCOMP_LOG`, and
+  `SHCOMP_LOG_FILE` control tracing.
 
 ## v0.0.1
 

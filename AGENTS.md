@@ -63,6 +63,7 @@ documented; `mise run perf:docs` regenerates that snapshot.
 
 - `src/cli.rs` - root `Cli`, `Commands`, and dispatch; one module per command under `src/cli/`.
 - `src/report.rs` - severities, findings, and the table `ls` and `doctor` print.
+- `src/logging.rs` - tracing setup: filters, the stderr layer, and the file sink.
 - `src/config.rs` - user config: selections and settings, never recipes.
 - `src/registry/` - registry items, loading, resolution, `ls`.
 - `src/reference.rs` - reference and workspace normalization.

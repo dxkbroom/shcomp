@@ -101,6 +101,15 @@ pub struct Settings {
     /// this is absent.
     #[serde(default)]
     pub env: BTreeMap<String, String>,
+
+    /// Tracing directives, as `SHCOMP_LOG` takes them. `SHCOMP_LOG` wins.
+    #[serde(default)]
+    pub log: Option<String>,
+
+    /// Append the same events, without color, to this file. `SHCOMP_LOG_FILE`
+    /// wins.
+    #[serde(default)]
+    pub log_file: Option<PathBuf>,
 }
 
 impl Default for Settings {
@@ -111,6 +120,8 @@ impl Default for Settings {
             cache_dir: None,
             data_dir: None,
             env: BTreeMap::new(),
+            log: None,
+            log_file: None,
         }
     }
 }
@@ -140,13 +151,25 @@ impl Config {
         Ok(config)
     }
 
+    /// Load the requested config for a command.
+    ///
+    /// Memoized on success: `main` reads it once to configure logging, and the
+    /// command that runs next must not pay a second parse — `shcomp load` is
+    /// the hot path a shell forks. A failed load is not cached, so a later
+    /// command still reports the error in full.
     pub fn load_default() -> Result<Self> {
-        let path = crate::dirs::config_file()?;
-        if path.exists() {
-            Self::load(&path)
-        } else {
-            Ok(Self::default())
+        static CACHED: std::sync::OnceLock<Config> = std::sync::OnceLock::new();
+        if let Some(config) = CACHED.get() {
+            return Ok(config.clone());
         }
+        let path = crate::dirs::config_file()?;
+        let config = if path.exists() {
+            Self::load(&path)?
+        } else {
+            Self::default()
+        };
+        let _ = CACHED.set(config.clone());
+        Ok(config)
     }
 
     pub fn validate(&self) -> Result<()> {

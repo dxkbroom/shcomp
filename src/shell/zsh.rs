@@ -148,6 +148,12 @@ pub fn install(config: &Config, registry: &Registry, dry_run: bool) -> Result<In
                 ShimStatus::Wrote
             }
         };
+        tracing::info!(
+            command = %command,
+            status = status.as_str(),
+            shim = %path.display(),
+            "shim"
+        );
         report.rows.push(InstallRow {
             command: command.clone(),
             shim: path,
@@ -263,7 +269,9 @@ pub fn mise_owned(command: &str) -> bool {
         return false;
     }
     let stderr = String::from_utf8_lossy(&output.stderr);
-    !stderr.contains("not installed from a packslip")
+    let owned = !stderr.contains("not installed from a packslip");
+    tracing::debug!(command, owned, "mise packslip probe");
+    owned
 }
 
 /// Read-only checks for the zsh install.

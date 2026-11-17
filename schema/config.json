@@ -18,7 +18,9 @@
         "fetch": true,
         "cache_dir": null,
         "data_dir": null,
-        "env": {}
+        "env": {},
+        "log": null,
+        "log_file": null
       }
     },
     "registry": {
@@ -108,6 +110,22 @@
             "type": "string"
           },
           "default": {}
+        },
+        "log": {
+          "description": "Tracing directives, as `SHCOMP_LOG` takes them. `SHCOMP_LOG` wins.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "log_file": {
+          "description": "Append the same events, without color, to this file. `SHCOMP_LOG_FILE`\nwins.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       },
       "additionalProperties": false
