@@ -165,7 +165,7 @@ pub fn prefetch(
             continue;
         };
         for (shell, source) in &tool.resolved.tool.completions {
-            if shell != "zsh" {
+            if !crate::shell::managed(shell) {
                 continue;
             }
             if let Some(url) = &source.url {

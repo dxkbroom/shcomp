@@ -102,6 +102,10 @@ pub struct Settings {
     #[serde(default)]
     pub env: BTreeMap<String, String>,
 
+    /// Shells `install` manages. Defaults to every shell shcomp supports.
+    #[serde(default = "Settings::default_shells")]
+    pub shells: Vec<String>,
+
     /// Tracing directives, as `SHCOMP_LOG` takes them. `SHCOMP_LOG` wins.
     #[serde(default)]
     pub log: Option<String>,
@@ -120,6 +124,7 @@ impl Default for Settings {
             cache_dir: None,
             data_dir: None,
             env: BTreeMap::new(),
+            shells: Self::default_shells(),
             log: None,
             log_file: None,
         }
@@ -133,6 +138,10 @@ impl Settings {
 
     fn default_fetch() -> bool {
         true
+    }
+
+    fn default_shells() -> Vec<String> {
+        vec!["zsh".to_string(), "fish".to_string()]
     }
 
     pub fn timeout(&self) -> Result<std::time::Duration> {
@@ -194,6 +203,13 @@ impl Config {
                 .wrap_err_with(|| format!("invalid inline registry item #{index}"))?;
         }
 
+        for shell in &self.settings.shells {
+            validate_shell(shell)
+                .wrap_err_with(|| format!("invalid `settings.shells` entry `{shell}`"))?;
+            if !crate::shell::managed(shell) {
+                bail!("`{}` is not a shell shcomp can install for", shell);
+            }
+        }
         self.settings.timeout()?;
         Ok(())
     }

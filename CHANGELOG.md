@@ -6,6 +6,16 @@ shcomp is pre-v1: this release settles the CLI and is allowed to break v0.0.1.
 The full rationale is in `PLAN.md` under "v0.1.0 plan"; this is the list a user
 has to act on.
 
+### Added
+
+- fish support: `${XDG_DATA_HOME}/shcomp/fish/completions` with one
+  `fish_complete_path` line, a version-checking loader that follows a `PATH`
+  switch between Tabs, and `complete-word --shell fish` through
+  `complete --do-complete`. Registry items for `gh`, `uv`, `chezmoi`, `just`,
+  and `zellij` gained fish sources. `install`/`uninstall` take `-s/--shell`, and
+  `[settings].shells` defaults to both.
+- `ls` gained a `Shells` column.
+
 ### Fixed
 
 - A zsh completion no longer aborts when a vendor script leaves an `_arguments`

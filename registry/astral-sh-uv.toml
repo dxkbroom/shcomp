@@ -7,3 +7,6 @@ name = "uv"
 
 [tools.completions.zsh]
 run = ["{{ bin }}", "generate-shell-completion", "{{ shell }}"]
+
+[tools.completions.fish]
+run = ["{{ bin }}", "generate-shell-completion", "{{ shell }}"]

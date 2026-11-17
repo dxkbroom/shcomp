@@ -11,6 +11,12 @@ use crate::source;
 
 const HARNESS: &str = include_str!("shell/harness.zsh");
 
+/// fish's answer to the same question. `fish_complete_path` is cleared so the
+/// child cannot autoload the shim that asked.
+const FISH_HARNESS: &str = r#"set -e fish_complete_path
+source $argv[1]
+complete --do-complete $argv[2]"#;
+
 #[derive(Debug, Clone)]
 pub struct Request {
     pub tool: String,
@@ -98,8 +104,11 @@ pub fn complete(
     registry: &Registry,
     request: &Request,
 ) -> Result<CompletionResult> {
-    if request.shell != "zsh" {
-        bail!("only zsh is supported in v0.0.1");
+    if !crate::shell::managed(&request.shell) {
+        bail!(
+            "`{}` is not a shell shcomp manages; it can probe zsh and fish",
+            request.shell
+        );
     }
     let resolved = registry
         .resolve_str(&request.tool)
@@ -115,7 +124,7 @@ pub fn complete(
         bail!("`{command}` resolves to version {actual}, not {expected}");
     }
 
-    let script = crate::cache::load_or_generate(config, registry, &command, "zsh", &bin)?;
+    let script = crate::cache::load_or_generate(config, registry, &command, &request.shell, &bin)?;
 
     let words = completion_words(&command, &request.tool, &request.words);
     let cword = request.cword.unwrap_or(words.len());
@@ -148,26 +157,40 @@ pub fn complete(
     let timeout = config.settings.timeout()?;
     let timeout_ms = timeout.as_millis() + 2_000;
 
-    let mut process = Command::new("zsh");
-    process
-        .arg("-f")
-        .arg("-c")
-        .arg(HARNESS)
-        .arg("shcomp")
-        .arg(&script)
-        .arg(&command)
-        .arg(&line)
-        .arg(&out)
-        .arg(timeout_ms.to_string());
-    let (status, stdout, stderr) = source::run_captured(
-        process,
-        timeout + Duration::from_secs(2),
-        "zsh completion harness",
-    )?;
+    // fish needs no PTY: `complete --do-complete` answers a line directly.
+    // zsh does, because a completion function only runs inside a real ZLE
+    // completion, so it gets the pty harness.
+    let (process, what) = if request.shell == "fish" {
+        let mut process = Command::new("fish");
+        process
+            .arg("--no-config")
+            .arg("-c")
+            .arg(FISH_HARNESS)
+            .arg("--")
+            .arg(&script)
+            .arg(&line);
+        (process, "fish completion harness")
+    } else {
+        let mut process = Command::new("zsh");
+        process
+            .arg("-f")
+            .arg("-c")
+            .arg(HARNESS)
+            .arg("shcomp")
+            .arg(&script)
+            .arg(&command)
+            .arg(&line)
+            .arg(&out)
+            .arg(timeout_ms.to_string());
+        (process, "zsh completion harness")
+    };
+    let (status, stdout, stderr) =
+        source::run_captured(process, timeout + Duration::from_secs(2), what)?;
     let _ = std::fs::remove_dir_all(&directory);
     if !status.success() {
         bail!(
-            "the zsh completion harness failed\n{}",
+            "the {} failed\n{}",
+            what,
             String::from_utf8_lossy(&stderr).trim()
         );
     }

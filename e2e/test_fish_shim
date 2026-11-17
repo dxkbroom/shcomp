@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# A fish shim follows a version switch between Tabs, asks shcomp only when the
+# executable changed, and complete-word answers through fish's completion.
+
+skip_unless_cmd fish
+
+mkdir -p v1 v2 logbin
+cat >v1/fake <<'SH'
+#!/bin/sh
+printf 'complete -c fake -f -a "one two"\n'
+SH
+cat >v2/fake <<'SH'
+#!/bin/sh
+printf 'complete -c fake -f -a "three four"\n'
+SH
+chmod +x v1/fake v2/fake
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+"example/fake" = true
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+
+[registry.tools.completions.fish]
+run = ["{{ bin }}"]
+TOML
+
+export SHCOMP_CALLS="$PWD/calls.log"
+cat >logbin/shcomp <<'SH'
+#!/bin/sh
+printf '%s\n' "$*" >>"$SHCOMP_CALLS"
+exec "$SHCOMP_BIN" "$@"
+SH
+chmod +x logbin/shcomp
+
+PATH="$PWD/v1:$PATH" "$SHCOMP_BIN" install -s fish >/dev/null
+shim="$SHCOMP_DATA_DIR/fish/completions/fake.fish"
+assert_file_contains "$shim" "complete -c fake -f -a '(__shcomp_load_fake"
+assert_file_contains "$shim" "command shcomp load --shell fish"
+
+export PATH="$PWD/logbin:$PWD/v1:$PATH"
+
+# Two Tabs in one shell: the second must not ask shcomp again.
+first=$(fish --no-config -c "
+set -p fish_complete_path $SHCOMP_DATA_DIR/fish/completions
+complete -C 'fake '
+complete -C 'fake '
+" 2>&1)
+printf '%s\n' "$first"
+assert_contains_text "$first" "one"
+
+# The same shell, after PATH selects another version: the next Tab follows it.
+switch=$(fish --no-config -c "
+set -p fish_complete_path $SHCOMP_DATA_DIR/fish/completions
+complete -C 'fake '
+set -gx PATH $PWD/v2 \$PATH
+complete -C 'fake '
+" 2>&1)
+printf '%s\n' "$switch"
+assert_contains_text "$switch" "three"
+
+loads=$(wc -l <"$SHCOMP_CALLS")
+if [[ $loads -ne 3 ]]; then
+  fail "expected 3 loads (v1 once per session, v2 once), got $loads: $(cat "$SHCOMP_CALLS")"
+fi
+
+# complete-word uses fish's own completion rather than the zsh harness.
+candidates=$("$SHCOMP_BIN" complete-word --shell fish fake fake "")
+printf '%s\n' "$candidates"
+assert_contains_text "$candidates" "one"
+
+"$SHCOMP_BIN" uninstall -s fish >/dev/null
+assert_not_exists "$shim"
+
+ok "fish shim dispatch, version switch, and complete-word"

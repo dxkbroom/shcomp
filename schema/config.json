@@ -19,6 +19,10 @@
         "cache_dir": null,
         "data_dir": null,
         "env": {},
+        "shells": [
+          "zsh",
+          "fish"
+        ],
         "log": null,
         "log_file": null
       }
@@ -110,6 +114,17 @@
             "type": "string"
           },
           "default": {}
+        },
+        "shells": {
+          "description": "Shells `install` manages. Defaults to every shell shcomp supports.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "zsh",
+            "fish"
+          ]
         },
         "log": {
           "description": "Tracing directives, as `SHCOMP_LOG` takes them. `SHCOMP_LOG` wins.",
