@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased (0.1.0)
+
+shcomp is pre-v1: this release settles the CLI and is allowed to break v0.0.1.
+The full rationale is in `PLAN.md` under "v0.1.0 plan"; this is the list a user
+has to act on.
+
+### Breaking changes
+
+- `shcomp ls` prints a table with `Tool`, `Repo`, `Source`, `Cache`, `Owner`, and
+  `Description` columns, and gains `--no-header` and `--all`. `--json` replaces
+  the flat `cached` / `mise_owned` booleans with `cache { state, script, key }`
+  and `owner`.
+- `shcomp completion <shell> --install` is removed. `shcomp install` owns
+  shcomp's own completion entry, in the same directory as every other shim;
+  `shcomp completion <shell>` still prints a script.
+- `shcomp doctor` exits 1 when a check fails, and reports sections instead of
+  prose lines.
+- `shcomp add` reconciles by default: it writes the shim and fetches URL
+  sources, like `mise use`. Pass `--no-install` for the v0.0.1 behavior.
+- Commands mise installed from a packslip are no longer skipped: shcomp writes
+  its shim for every selected tool.
+- A registry source may declare `kind = "usage"`, and `[settings]` gains
+  `shells`, `usage_bin`, `log`, and `log_file`.
+
 ## v0.0.1
 
 First tagged release. zsh only.

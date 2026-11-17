@@ -61,10 +61,28 @@ Target-shell code that loads a completion and collects candidates for
 `complete-word`. The harness uses the shell's real completion system; shcomp
 orchestrates it.
 
-## mise-owned
+## Owner
 
-A command whose completion mise's packslip loader already provides. shcomp skips
-it so the two never fight over the same command.
+Who writes the completion for a command: `shcomp`, or `mise` when mise's
+packslip loader provides one. shcomp does not yield a command it was asked to
+manage; the field exists so a duplicate stub can be found and removed.
+
+## Implicit selection
+
+A selection shcomp installs without a config entry. shcomp's own entry is the
+only one: it follows from using shcomp, not from asking for it.
+
+## Spec source
+
+A source whose completion is rendered from a usage KDL specification by the
+`usage` CLI. shcomp supplies the spec command and a version-scoped cache key and
+caches the rendered script; it does not parse the spec.
+
+## Cache state
+
+Whether the next Tab will fork: `warm` (a cached script for the resolved
+binary), `cold` (resolvable, not generated yet), `missing` (no binary on PATH),
+or `n/a` (no source for that shell).
 
 ## Warm completion
 
