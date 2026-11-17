@@ -39,6 +39,7 @@ cmd complete-word help="Probe completion candidates through the target shell" {
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <TOOL> help="Tool reference, optionally with `@version`"
     arg "[WORDS]..." help="Words typed so far, starting with the command" var_max=4294967295
+    complete tool run="shcomp __complete_word__ --candidates tool --line={{ words | shell_join | shell_quote }}"
 }
 cmd doctor help="Check the configuration and installed shims" {
     flag --check help="Run each generator and validate its output"
@@ -74,6 +75,7 @@ cmd search help="Search the registry for a tool to add" {
     flag --complete-ids help="Print only references, for shell completions" hide=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[NAME]" help="Name, workspace, or reference to search for"
+    complete name run="shcomp __complete_word__ --candidates name --line={{ words | shell_join | shell_quote }}"
 }
 cmd add help="Add a tool selection to the config" {
     flag --alias help="Extra command name to register; repeat for several" var=#true {
@@ -85,6 +87,7 @@ cmd add help="Add a tool selection to the config" {
     flag "-f --force" help="Replace the selection's aliases instead of adding to them"
     flag "-h --help" help="Print help" action=help builtin=#true
     arg <REFERENCE> help="Tool reference to add"
+    complete reference run="shcomp __complete_word__ --candidates reference --line={{ words | shell_join | shell_quote }}"
 }
 cmd clean help="Remove the completion cache" {
     flag "-h --help" help="Print help" action=help builtin=#true

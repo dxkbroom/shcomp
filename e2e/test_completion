@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# The shell callback answers with registry references, filtered by the word
+# being typed, and the generated script knows the protocol.
+
+mkdir -p registry bin
+cat >registry/acme.toml <<'TOML'
+repo = "acme/tool"
+main = "acme"
+description = "A private tool"
+
+[[tools]]
+name = "acme"
+
+[tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+cat >bin/acme <<'SH'
+#!/bin/sh
+printf '#compdef acme\n_acme() { compadd one; }\n'
+SH
+chmod +x bin/acme
+export SHCOMP_REGISTRY_DIR="$PWD/registry"
+export PATH="$PWD/bin:$PATH"
+
+all=$("$SHCOMP_BIN" __complete_word__ --shell zsh --line "shcomp add ")
+assert_contains_text "$all" "cli/cli/gh"
+assert_contains_text "$all" "GitHub's official command line tool"
+assert_contains_text "$all" "acme/tool/acme"
+
+filtered=$("$SHCOMP_BIN" __complete_word__ --shell zsh --line "shcomp add cli/")
+assert_contains_text "$filtered" "cli/cli/gh"
+assert_not_contains_text "$filtered" "acme/tool/acme"
+
+tool=$("$SHCOMP_BIN" __complete_word__ --shell zsh --line "shcomp complete-word eza")
+assert_contains_text "$tool" "eza-community/eza/eza"
+
+script=$("$SHCOMP_BIN" completion zsh)
+assert_contains_text "$script" "__complete_word__"
+
+if "$SHCOMP_BIN" completion zsh --install >/dev/null 2>&1; then
+  fail "completion --install should be gone; shcomp install owns the entry"
+fi
+ok "completion --install is removed"
+
+ok "the completion callback answers references"

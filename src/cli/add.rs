@@ -4,6 +4,8 @@ use std::process::ExitCode;
 
 use eyre::{Result, WrapErr};
 
+use usage_rs::complete::{Candidate, CompleteCtx};
+
 use crate::config::Config;
 use crate::registry::Registry;
 use crate::shell::zsh::{self, ShimStatus};
@@ -11,7 +13,7 @@ use crate::shell::zsh::{self, ShimStatus};
 #[derive(Debug, Default, usage_rs::Args)]
 pub struct Add {
     /// Tool reference to add
-    #[usage(arg)]
+    #[usage(arg, complete = crate::cli::add::complete_reference)]
     pub reference: String,
 
     /// Extra command name to register; repeat for several
@@ -33,6 +35,14 @@ pub struct Add {
     /// Replace the selection's aliases instead of adding to them
     #[usage(long, short)]
     pub force: bool,
+}
+
+/// The completer for `add <REFERENCE>`: every reference the registry can add.
+fn complete_reference(
+    _add: &<Add as usage_rs::spec::CommandArgs>::Partial,
+    ctx: &CompleteCtx<'_>,
+) -> Vec<Candidate<'static>> {
+    crate::cli::search::candidates(ctx.prefix)
 }
 
 impl Add {
