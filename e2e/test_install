@@ -55,7 +55,16 @@ PATH="$PWD/bin:$PATH" "$SHCOMP_BIN" install >/dev/null
 assert_file_contains "$shim" '#compdef fake fk fk2'
 
 check=$(PATH="$PWD/bin:$PATH" "$SHCOMP_BIN" doctor --check)
-assert_contains_text "$check" "fake: ok"
+assert_contains_text "$check" "fake: generator ok"
+
+# A missing shim is an error, so doctor fails the check.
+rm -f "$shim"
+if PATH="$PWD/bin:$PATH" "$SHCOMP_BIN" doctor >/dev/null 2>&1; then
+  fail "doctor should exit non-zero when a shim is missing"
+fi
+ok "doctor exits non-zero on a missing shim"
+PATH="$PWD/bin:$PATH" "$SHCOMP_BIN" install >/dev/null
+assert_exists "$shim"
 
 rm -rf "$SHCOMP_CACHE_DIR"
 PATH="$PWD/bin:$PATH" "$SHCOMP_BIN" install --prewarm >/dev/null

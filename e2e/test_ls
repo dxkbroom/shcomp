@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# ls prints a readable table, --all includes disabled selections, --json carries
+# the cache state and the owner, and --no-header drops the header row.
+
+mkdir -p bin
+cat >bin/fake <<'SH'
+#!/bin/sh
+printf '#compdef fake\n_fake() { compadd one; }\n'
+SH
+chmod +x bin/fake
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+"example/fake" = { aliases = ["fk"] }
+"example/off" = { disabled = true }
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+
+[[registry]]
+repo = "example/off"
+main = "off"
+
+[[registry.tools]]
+name = "off"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+
+export PATH="$PWD/bin:$PATH"
+
+table=$("$SHCOMP_BIN" ls)
+assert_contains_text "$table" "Tool"
+assert_contains_text "$table" "Cache"
+assert_contains_text "$table" "Owner"
+assert_contains_text "$table" "fake (fk)"
+assert_not_contains_text "$table" "off"
+
+all=$("$SHCOMP_BIN" ls --all)
+assert_contains_text "$all" "off (disabled)"
+
+bare=$("$SHCOMP_BIN" ls --no-header)
+assert_not_contains_text "$bare" "Tool"
+
+json=$("$SHCOMP_BIN" ls --json)
+assert_contains_text "$json" '"state": "missing"'
+assert_contains_text "$json" '"owner": "shcomp"'
+assert_contains_text "$json" '"disabled": true'
+
+ok "ls table, --all, --no-header, and --json"
