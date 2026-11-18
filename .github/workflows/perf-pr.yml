@@ -54,6 +54,12 @@ jobs:
           head-sha: ${{ github.event.pull_request.head.sha }}
           comment: false
           check: false
+          # Honour `Tak-Accept:` trailers: a layer that legitimately moves a
+          # number says so in its commit, the pull request, and the subject's
+          # tak.toml comment, and the gate reports it as accepted instead of
+          # failing. It stays off by default in the action because the pull
+          # request controls both its commits and its tak.toml.
+          accept-trailers: true
           run: |
             cargo build --release --locked
             tak run --record
