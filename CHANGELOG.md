@@ -6,6 +6,14 @@ shcomp is pre-v1: this release settles the CLI and is allowed to break v0.0.1.
 The full rationale is in `PLAN.md` under "v0.1.0 plan"; this is the list a user
 has to act on.
 
+### Fixed
+
+- A zsh completion no longer aborts when a vendor script leaves an `_arguments`
+  exclusion group unquoted. gradle's does, and the shim now sets `no_nomatch`
+  for the vendor body; `doctor --check` also runs one real completion per tool
+  and reports a failing one. Filed upstream as
+  [gradle/gradle-completion#273](https://github.com/gradle/gradle-completion/issues/273).
+
 ### Breaking changes
 
 - `shcomp ls` prints a table with `Tool`, `Repo`, `Source`, `Cache`, `Owner`, and

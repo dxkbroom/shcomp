@@ -34,10 +34,11 @@ contains=$("$SHCOMP_BIN" search --match-type contains hub)
 assert_contains_text "$contains" "cli/cli/gh"
 
 complete=$("$SHCOMP_BIN" search --complete gh)
-assert_contains_text "$complete" "cli/cli/gh"
-assert_contains_text "$complete" "GitHub's official command line tool"
+assert_contains_text "$complete" $'gh\tGitHub\'s official command line tool'
+assert_not_contains_text "$complete" "cli/cli/gh"
 
 ids=$("$SHCOMP_BIN" search --complete-ids gh)
+assert_contains_text "$ids" "gh"
 assert_not_contains_text "$ids" "GitHub's official"
 
 json=$("$SHCOMP_BIN" search --json eza)

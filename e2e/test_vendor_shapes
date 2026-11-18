@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# A vendor zsh completion script comes in two shapes: a script that defines a
+# function and registers it with compdef (bun, cargo, gh), or a plain function
+# body that compinit autoloads (eza, gradle). The probe must run both. The
+# function-body case here also uses _describe's inline list form.
+
+skip_unless_cmd zsh
+
+mkdir -p bin
+
+# Generated-script shape: autoloading the file only runs its definitions, so
+# the probe has to source it before asking for candidates.
+cat >bin/clicky <<'SH'
+#!/bin/sh
+cat <<'SCRIPT'
+#compdef clicky
+
+_clicky() {
+  local -a items
+  items=(
+    'add:Add a dependency'
+    'audit:Audit dependencies'
+    'build:Build the project'
+  )
+  _describe 'commands' items
+}
+compdef _clicky clicky
+SCRIPT
+SH
+
+# Function-body shape: the text of the file is the completion function, so it
+# belongs on fpath for compinit to autoload.
+cat >bin/bodytool <<'SH'
+#!/bin/sh
+cat <<'SCRIPT'
+#compdef bodytool
+
+_bodytool() {
+  local ret=1
+  _arguments -s '*: :->cmd' && ret=0
+  case $state in
+  cmd)
+    _describe 'commands' '(
+      "start:Start a session"
+      "status:Show status"
+    )' && ret=0
+    ;;
+  esac
+  return ret
+}
+_bodytool "$@"
+SCRIPT
+SH
+
+chmod +x bin/clicky bin/bodytool
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+"example/clicky" = true
+"example/bodytool" = true
+
+[[registry]]
+repo = "example/clicky"
+main = "clicky"
+
+[[registry.tools]]
+name = "clicky"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+
+[[registry]]
+repo = "example/bodytool"
+main = "bodytool"
+
+[[registry.tools]]
+name = "bodytool"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+
+export PATH="$PWD/bin:$PATH"
+
+# The generated script must answer on the first pass, and keep descriptions.
+clicky=$("$SHCOMP_BIN" complete-word clicky)
+printf '%s\n' "$clicky"
+assert_contains_text "$clicky" "add"
+assert_contains_text "$clicky" "Add a dependency"
+assert_contains_text "$clicky" "audit"
+assert_contains_text "$clicky" "build"
+
+# zsh's own compadd still filters by prefix.
+filtered=$("$SHCOMP_BIN" complete-word clicky a)
+assert_contains_text "$filtered" "add"
+assert_contains_text "$filtered" "audit"
+assert_not_contains_text "$filtered" "build"
+
+# The autoloaded body must set the _arguments state and capture the inline
+# _describe list, descriptions included.
+body=$("$SHCOMP_BIN" complete-word bodytool)
+printf '%s\n' "$body"
+assert_contains_text "$body" "start"
+assert_contains_text "$body" "Start a session"
+assert_contains_text "$body" "status"
+assert_contains_text "$body" "Show status"
+
+body_filtered=$("$SHCOMP_BIN" complete-word bodytool star)
+assert_contains_text "$body_filtered" "start"
+assert_not_contains_text "$body_filtered" "status"
+
+ok "both vendor script shapes complete"

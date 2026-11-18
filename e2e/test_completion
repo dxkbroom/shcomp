@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# The shell callback answers with registry references, filtered by the word
-# being typed, and the generated script knows the protocol.
+# The shell callback answers with tool names, filtered by the word being typed,
+# and the generated script knows the protocol.
 
 mkdir -p registry bin
 cat >registry/acme.toml <<'TOML'
@@ -23,16 +23,20 @@ export SHCOMP_REGISTRY_DIR="$PWD/registry"
 export PATH="$PWD/bin:$PATH"
 
 all=$("$SHCOMP_BIN" __complete_word__ --shell zsh --line "shcomp add ")
-assert_contains_text "$all" "cli/cli/gh"
-assert_contains_text "$all" "GitHub's official command line tool"
-assert_contains_text "$all" "acme/tool/acme"
+assert_contains_text "$all" $'gh\tGitHub\'s official command line tool'
+assert_contains_text "$all" $'acme\tA private tool'
 
-filtered=$("$SHCOMP_BIN" __complete_word__ --shell zsh --line "shcomp add cli/")
-assert_contains_text "$filtered" "cli/cli/gh"
-assert_not_contains_text "$filtered" "acme/tool/acme"
+filtered=$("$SHCOMP_BIN" __complete_word__ --shell zsh --line "shcomp add gh")
+assert_contains_text "$filtered" $'gh\tGitHub\'s official command line tool'
+assert_not_contains_text "$filtered" "A private tool"
+
+# A reference prefix still works, because the value falls back to the reference.
+reference=$("$SHCOMP_BIN" __complete_word__ --shell zsh --line "shcomp add cli/")
+assert_contains_text "$reference" $'cli/cli/gh\tGitHub\'s official command line tool'
+assert_not_contains_text "$reference" "A private tool"
 
 tool=$("$SHCOMP_BIN" __complete_word__ --shell zsh --line "shcomp complete-word eza")
-assert_contains_text "$tool" "eza-community/eza/eza"
+assert_contains_text "$tool" $'eza\tA modern replacement for ls'
 
 script=$("$SHCOMP_BIN" completion zsh)
 assert_contains_text "$script" "__complete_word__"
@@ -42,4 +46,4 @@ if "$SHCOMP_BIN" completion zsh --install >/dev/null 2>&1; then
 fi
 ok "completion --install is removed"
 
-ok "the completion callback answers references"
+ok "the completion callback answers tool names"

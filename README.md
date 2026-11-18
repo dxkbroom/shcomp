@@ -98,8 +98,10 @@ Then restart the shell, or run `compinit` again.
 
 shcomp's own completion ships with it: `shcomp install` writes `_shcomp` even
 though there is no `shcomp` entry in your config. Once it is loaded,
-`shcomp add <TAB>` completes every reference the registry knows — including
-items from your own registry — with the description beside it.
+`shcomp add <TAB>` completes every tool the registry knows — including items
+from your own registry — with the description beside it. It inserts the tool
+name, because that is what `add` and `complete-word` accept; when two entries
+share a name, it inserts the full reference instead.
 `shcomp search <TAB>` and `shcomp complete-word <TAB>` use the same corpus.
 
 `shcomp ls` answers the questions you actually have about an entry: what it is
@@ -273,6 +275,25 @@ SHCOMP_LOG=shcomp::cache=debug shcomp ls
 which is how to see what happened during a Tab — the shell swallows stderr
 there. Logs never go to stdout, so `shcomp load` and `shcomp completion` stay
 script-safe.
+
+## When a vendor completion is broken
+
+shcomp brokers completions; it does not write them. If a Tab offers nothing or
+prints an error, check the vendor script before assuming shcomp:
+
+```sh
+shcomp complete-word <command> <command> ""
+shcomp doctor --check
+```
+
+A vendor zsh script sometimes writes an `_arguments` spec with its exclusion
+group unquoted, as `(--no-build-cache)'--build-cache[…]'`. zsh reads the leading
+`(` as a glob group, and under the default `NOMATCH` a word that matches
+nothing aborts the whole completion — which is why gradle's completion failed
+on flags with a negative form. shcomp's shim sets `no_nomatch` for the vendor
+body, so the literal word reaches `_arguments` as the author intended. Other
+vendor failures are reported by `doctor --check`, which runs one real completion
+per tool and names the command that failed.
 
 ## Known limitations in v0.0.1
 

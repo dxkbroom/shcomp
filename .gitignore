@@ -11,3 +11,6 @@
 # The chart page is regenerated, never committed; the markdown snapshot beside
 # it is.
 /docs/perf/history.html
+
+# Local agent scratch space.
+/.junie/

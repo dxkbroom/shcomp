@@ -20,6 +20,21 @@ pub struct Request {
     pub shell: String,
 }
 
+/// Result of a completion probe, including metadata for `--json` output.
+#[derive(Debug, Clone)]
+pub struct CompletionResult {
+    /// The resolved tool name
+    pub command: String,
+    /// The registry reference (e.g., `cli/cli/gh`)
+    pub reference: String,
+    /// The tool description from the registry item
+    pub description: String,
+    /// The line passed to the harness
+    pub line: String,
+    /// Completion candidates (tab-separated value and optional description)
+    pub candidates: Vec<String>,
+}
+
 /// Split a trailing `@version`, leaving SSH references alone.
 pub fn split_tool_version(input: &str) -> (String, Option<String>) {
     if let Some((base, version)) = input.rsplit_once('@')
@@ -33,7 +48,56 @@ pub fn split_tool_version(input: &str) -> (String, Option<String>) {
     (input.to_string(), None)
 }
 
-pub fn complete(config: &Config, registry: &Registry, request: &Request) -> Result<Vec<String>> {
+/// Build the word list the harness completes.
+///
+/// A caller may pass the words after the command (`gh co`) or the whole line
+/// (`gh gh co`).  Accept both forms and put the canonical command in the first
+/// position, so an alias never reaches the vendor script.
+fn completion_words(command: &str, tool: &str, words: &[String]) -> Vec<String> {
+    if words.is_empty() {
+        return vec![command.to_string(), String::new()];
+    }
+    let mut all = if words[0].as_str() == command || words[0].as_str() == tool {
+        words.to_vec()
+    } else {
+        let mut all = Vec::with_capacity(words.len() + 1);
+        all.push(command.to_string());
+        all.extend(words.iter().cloned());
+        all
+    };
+    all[0] = command.to_string();
+    all
+}
+
+/// Undo the backslash escaping zsh completion descriptions use.
+///
+/// Vendor scripts write `\[env: X=\]` or `` \`--flag\` `` so zsh renders the
+/// literal character. The harness captures the raw string, so undo the escape
+/// for display while leaving Windows-style `C:\Users` alone.
+fn clean_description(description: &str) -> String {
+    let mut cleaned = String::with_capacity(description.len());
+    let mut chars = description.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            match chars.peek().copied() {
+                Some(next) if !next.is_alphanumeric() => {
+                    chars.next();
+                    cleaned.push(next);
+                }
+                _ => cleaned.push(ch),
+            }
+        } else {
+            cleaned.push(ch);
+        }
+    }
+    cleaned
+}
+
+pub fn complete(
+    config: &Config,
+    registry: &Registry,
+    request: &Request,
+) -> Result<CompletionResult> {
     if request.shell != "zsh" {
         bail!("only zsh is supported in v0.0.1");
     }
@@ -41,6 +105,8 @@ pub fn complete(config: &Config, registry: &Registry, request: &Request) -> Resu
         .resolve_str(&request.tool)
         .wrap_err_with(|| format!("cannot complete `{}`", request.tool))?;
     let command = resolved.tool.name.clone();
+    let reference = resolved.reference.clone();
+    let description = resolved.item.description.clone().unwrap_or_default();
     let bin = source::resolve_binary(&command)?;
     if let Some(expected) = &request.version
         && let Some(actual) = source::version_for_tool(&resolved.tool, &bin)
@@ -51,21 +117,19 @@ pub fn complete(config: &Config, registry: &Registry, request: &Request) -> Resu
 
     let script = crate::cache::load_or_generate(config, registry, &command, "zsh", &bin)?;
 
-    let mut words = if request.words.is_empty() {
-        vec![command.clone(), String::new()]
-    } else {
-        request.words.clone()
-    };
-    // The harness completes the canonical command, not a shell alias.
-    if let Some(first) = words.first_mut() {
-        *first = command.clone();
-    }
+    let words = completion_words(&command, &request.tool, &request.words);
     let cword = request.cword.unwrap_or(words.len());
     if cword == 0 || cword > words.len() {
         bail!("cword must be between 1 and {}", words.len());
     }
     let mut line = words[..cword].join(" ");
-    if words[cword - 1].is_empty() {
+    // The harness needs a trailing space so the Tab key triggers completion.
+    // When the last word is empty, the join already produced a trailing space.
+    // When the last word is the command itself (cword == 1), we need a trailing
+    // space to start subcommand completion. For any other non-empty word, we
+    // must not add a trailing space, so zsh completes the current word (flags
+    // for "-", filtered subcommands for "ap", etc.).
+    if words[cword - 1].is_empty() || cword == 1 {
         line.push(' ');
     }
     if line.contains('\n') {
@@ -116,19 +180,64 @@ pub fn complete(config: &Config, registry: &Registry, request: &Request) -> Resu
         if value.is_empty() || !seen.insert(value.to_string()) {
             continue;
         }
-        let description = parts.next().unwrap_or_default();
-        if description.is_empty() {
+        let desc = clean_description(parts.next().unwrap_or_default());
+        if desc.is_empty() {
             candidates.push(value.to_string());
         } else {
-            candidates.push(format!("{value}\t{description}"));
+            candidates.push(format!("{value}\t{desc}"));
         }
     }
-    Ok(candidates)
+    Ok(CompletionResult {
+        command,
+        reference,
+        description,
+        line,
+        candidates,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn words(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| value.to_string()).collect()
+    }
+
+    #[test]
+    fn accepts_words_with_or_without_the_command() {
+        assert_eq!(completion_words("gh", "gh", &[]), words(&["gh", ""]));
+        assert_eq!(
+            completion_words("gh", "gh", &words(&["co"])),
+            words(&["gh", "co"])
+        );
+        assert_eq!(
+            completion_words("gh", "gh", &words(&["gh", "co"])),
+            words(&["gh", "co"])
+        );
+        assert_eq!(
+            completion_words("gh", "cli/cli/gh", &words(&["cli/cli/gh", "co"])),
+            words(&["gh", "co"])
+        );
+        assert_eq!(
+            completion_words("gh", "gh", &words(&["-"])),
+            words(&["gh", "-"])
+        );
+    }
+
+    #[test]
+    fn zsh_description_escapes_are_removed() {
+        assert_eq!(
+            clean_description(r"Require \[env: UV_MANAGED_PYTHON=\]"),
+            "Require [env: UV_MANAGED_PYTHON=]"
+        );
+        assert_eq!(
+            clean_description(r"use \`--system-certs\` instead"),
+            "use `--system-certs` instead"
+        );
+        assert_eq!(clean_description(r"a\\b"), r"a\b");
+        assert_eq!(clean_description(r"C:\Users"), r"C:\Users");
+    }
 
     #[test]
     fn splits_versions_without_touching_ssh() {

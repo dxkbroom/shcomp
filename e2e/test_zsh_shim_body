@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# A vendor script whose text is a completion function body performs its work
+# when the shim sources it. The shim must treat that source as the completion,
+# keep the shim callable for later Tabs, and never capture its own body (eza's
+# script is shaped this way).
+
+skip_unless_cmd zsh
+
+mkdir -p bin
+cat >bin/bodyonly <<SH
+#!/bin/sh
+cat <<'SCRIPT'
+#compdef bodyonly
+
+__bodyonly() {
+  print -r -- RUN >> $PWD/run.log
+  _arguments '--one[First option]' '--two[Second option]'
+}
+__bodyonly "\$@"
+SCRIPT
+SH
+chmod +x bin/bodyonly
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+"example/bodyonly" = true
+
+[[registry]]
+repo = "example/bodyonly"
+main = "bodyonly"
+
+[[registry.tools]]
+name = "bodyonly"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+
+export PATH="$PWD/bin:$PATH"
+"$SHCOMP_BIN" install >/dev/null
+
+cat >driver.zsh <<'ZSH'
+emulate -R zsh
+zmodload zsh/zpty 2>/dev/null || exit 1
+zmodload zsh/zselect 2>/dev/null || exit 1
+zpty -b z zsh -f -i || exit 1
+zpty -w z 'unset FPATH'
+zpty -w z "fpath=('$SHCOMP_DATA_DIR/zsh/site-functions' /usr/share/zsh/functions/* /usr/share/zsh/functions/Completion/*)"
+zpty -w z 'autoload -Uz compinit'
+zpty -w z "compinit -u -d $PWD/zcompdump"
+zpty -w z "PROMPT=''"
+zpty -w z 'RPROMPT='
+zpty -w z 'setopt no_always_last_prompt'
+
+local log= chunk
+zpty -w -n z "bodyonly -"$'\t'
+sleep 2
+while zpty -rt z chunk 2>/dev/null; do log+=$chunk; done
+zpty -w -n z $'\C-u'
+zpty -w -n z "bodyonly -"$'\t'
+sleep 2
+while zpty -rt z chunk 2>/dev/null; do log+=$chunk; done
+zpty -d z 2>/dev/null
+print -r -- "$log" > "$PWD/terminal.log"
+ZSH
+
+zsh -f "$PWD/driver.zsh"
+
+run_count=$(grep -c '^RUN$' "$PWD/run.log" 2>/dev/null || true)
+if [[ ${run_count:-0} -ne 2 ]]; then
+  fail "expected the vendor body on both Tabs (2), got ${run_count:-0}"
+fi
+
+if grep -aq 'maximum nested function\|FUNCNEST' "$PWD/terminal.log"; then
+  fail "the shim captured its own body and recursed: $(grep -a 'maximum nested function\|FUNCNEST' "$PWD/terminal.log" | head -1)"
+fi
+
+ok "a sourced completion body runs on every Tab without recursing"

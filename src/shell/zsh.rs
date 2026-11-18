@@ -34,7 +34,12 @@ pub fn render_shim(command: &str, aliases: &BTreeSet<String>) -> String {
         r#"#compdef {compdef}
 {MARKER}
 {fn_name}() {{
-  emulate -L zsh
+  # A vendor script may leave an `_arguments` exclusion group unquoted
+  # (`(--no-build-cache)'--build-cache[...]'`), and zsh parses the leading
+  # `(` as a glob group.  Suppress NOMATCH locally, and do not reset the
+  # completion system's options: vendor functions calling `_arguments` need
+  # `extendedglob` and friends from `_comp_setup`.
+  setopt localoptions no_nomatch
   local bin=${{commands[{command}]-}}
   [[ -n $bin ]] || return 1
   if [[ $bin != ${{__shcomp_bin_{ident}-}} ]] || {{ [[ -n ${{__shcomp_script_{ident}-}} ]] && [[ ${{__shcomp_script_{ident}}} -ot $bin ]]; }}; then
@@ -43,10 +48,31 @@ pub fn render_shim(command: &str, aliases: &BTreeSet<String>) -> String {
     typeset -g __shcomp_bin_{ident}=$bin
     typeset -g __shcomp_script_{ident}=$script
     local saved=${{functions[{fn_name}]}}
-    __shcomp_source_{ident}() {{ source -- "$script"; }}
+    local -i before=${{compstate[nmatches]-0}}
+    __shcomp_source_{ident}() {{ source -- "$__shcomp_script_{ident}"; }}
+    __shcomp_run_{ident}() {{
+      local saved=${{functions[{fn_name}]}}
+      source -- "$__shcomp_script_{ident}"
+      functions[{fn_name}]=$saved
+    }}
     __shcomp_source_{ident}
-    local body=${{_comps[{command}]-{fn_name}}}
-    if (( ! $+functions[$body] )); then
+    if (( ${{compstate[nmatches]-0}} > before )); then
+      # A function body performs its completion while it is sourced (eza,
+      # gradle do).  Keep the source as the body so a later Tab runs it again,
+      # and restore the shim in case the script redefined its name.
+      functions[__shcomp_body_{ident}]=${{functions[__shcomp_run_{ident}]}}
+      functions[{fn_name}]=$saved
+      compdef {fn_name} {compdef}
+      return 0
+    fi
+    local body=${{_comps[{command}]-}}
+    if [[ -z $body ]] || (( ! $+functions[$body] )) || {{ [[ $body == {fn_name} ]] && [[ ${{functions[$body]}} == $saved ]] }}; then
+      body=
+    fi
+    if [[ -z $body && ${{functions[{fn_name}]}} != $saved ]]; then
+      body={fn_name}
+    fi
+    if [[ -z $body ]]; then
       functions[{fn_name}]=$saved
       compdef {fn_name} {compdef}
       return 1
@@ -331,10 +357,13 @@ pub fn doctor(config: &Config, registry: &Registry, check: bool) -> Result<Vec<F
             match source::resolve_binary(command) {
                 Ok(bin) => {
                     match crate::cache::load_or_generate(config, registry, command, "zsh", &bin) {
-                        Ok(script) => findings.push(Finding::ok(
-                            "zsh",
-                            format!("{command}: generator ok ({})", script.display()),
-                        )),
+                        Ok(script) => {
+                            findings.push(Finding::ok(
+                                "zsh",
+                                format!("{command}: generator ok ({})", script.display()),
+                            ));
+                            findings.push(smoke(config, registry, command));
+                        }
                         Err(error) => findings.push(Finding::error(
                             "zsh",
                             format!("{command}: generator failed: {error}"),
@@ -372,6 +401,41 @@ pub fn doctor(config: &Config, registry: &Registry, check: bool) -> Result<Vec<F
     }
 
     Ok(findings)
+}
+
+/// Ask the real completion system for one candidate, so a vendor script that
+/// dies inside a completion is reported rather than silently offering nothing.
+///
+/// The failure this catches is the vendor's, not shcomp's: an unquoted glob or
+/// a helper that does not exist. The shim guards the first (gradle's case);
+/// anything else shows up here as an error or an empty answer.
+fn smoke(config: &Config, registry: &Registry, command: &str) -> Finding {
+    let request = crate::complete::Request {
+        tool: command.to_string(),
+        version: None,
+        words: vec![command.to_string(), String::new()],
+        cword: None,
+        shell: "zsh".to_string(),
+    };
+    match crate::complete::complete(config, registry, &request) {
+        Ok(result) if result.candidates.is_empty() => Finding::warn(
+            "zsh",
+            format!(
+                "{command}: smoke completion returned nothing; the vendor completion may be broken (run `shcomp complete-word {command} {command} \"\"`)"
+            ),
+        ),
+        Ok(result) => Finding::ok(
+            "zsh",
+            format!(
+                "{command}: smoke completion ok ({} candidate(s))",
+                result.candidates.len()
+            ),
+        ),
+        Err(error) => Finding::error(
+            "zsh",
+            format!("{command}: smoke completion failed: {error}"),
+        ),
+    }
 }
 
 /// The selected commands whose completion mise's packslip loader also provides.

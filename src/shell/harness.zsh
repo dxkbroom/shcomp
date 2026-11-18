@@ -12,14 +12,24 @@ local script=$1 command=$2 line=$3 out=$4 timeout_ms=$5
 local tmp=${out:h}
 [[ -d $tmp ]] || mkdir -p -- "$tmp"
 
-# A #compdef file is an autoload function, not a script to source: its body
-# may define a helper and call it at the top level. Put it in an fpath
-# directory so compinit autoloads it at completion time.
+# A #compdef file is not always an autoloadable function body.  It may be a
+# script that defines completion functions and registers them with compdef at
+# top level (bun, cargo, gh, and most generated scripts do this), or it may be
+# a plain function body whose text is the completion function (`_eza` and
+# `_gradle` are).  Autoloading the first kind only executes its definitions:
+# the first call registers the callback and returns no matches, so no
+# completions are emitted.  Source a script that registers itself or that
+# guards a self-call on `funcstack`; keep a plain function body in fpath so
+# compinit can autoload it.
 local use_fpath=0
 if head -n 1 -- "$script" 2>/dev/null | grep -q '^#compdef'; then
-  use_fpath=1
-  mkdir -p -- "$tmp/functions"
-  cp -- "$script" "$tmp/functions/_$command"
+  if grep -Eq '^compdef |funcstack\[1\]' "$script" 2>/dev/null; then
+    use_fpath=0
+  else
+    use_fpath=1
+    mkdir -p -- "$tmp/functions"
+    cp -- "$script" "$tmp/functions/_$command"
+  fi
 fi
 
 zmodload zsh/zpty 2>/dev/null || {
@@ -39,7 +49,7 @@ zpty -b z zsh -f -i || {
 local -a setup
 setup=(
   'unset FPATH'
-  "fpath=(${(q)tmp}/functions /usr/share/zsh/functions/Completion /usr/share/zsh/functions/Completion/*)"
+  "fpath=(${(q)tmp}/functions /usr/share/zsh/functions/* /usr/share/zsh/functions/Completion/*)"
   'autoload -Uz compinit'
   "compinit -u -d ${(q)tmp}/zcompdump"
   'autoload -Uz bashcompinit'
@@ -49,6 +59,10 @@ setup=(
   'COLUMNS=200'
   'LINES=50'
   'setopt no_always_last_prompt'
+  # The same guard the shim sets, so a probe answers what a real Tab answers:
+  # vendor scripts that leave an `_arguments` exclusion group unquoted (gradle
+  # does) would otherwise abort here while succeeding in the installed shell.
+  'setopt no_nomatch'
 )
 local command_line
 for command_line in $setup; do
@@ -60,9 +74,19 @@ if (( ! use_fpath )); then
 fi
 zpty -w z 'typeset -ga __shcomp_matches'
 zpty -w z 'typeset -gA __shcomp_seen __shcomp_descs'
-zpty -w z 'compadd() { local -a __tmp __descs __args; __args=("$@"); local -i __i=1 __n; while (( __i <= $#__args )); do case $__args[$__i] in -d) __descs=("${(@P)__args[$((__i+1))]}"); (( __i += 2 ));; -a|-A|-D|-O|-P|-S|-p|-s|-i|-I|-W|-M|-J|-V|-X|-x|-r|-R|-F|-t) (( __i += 2 ));; -*) (( __i += 1 ));; *) break;; esac; done; builtin compadd -O __tmp "$@"; __n=${#__tmp}; local __word; for (( __i = 1; __i <= __n; __i++ )); do __word=${__tmp[$__i]}; [[ -n $__word ]] || continue; [[ -n ${__shcomp_seen[$__word]-} ]] && continue; __shcomp_seen[$__word]=1; __shcomp_matches+=("$__word"); [[ -n ${__descs[$__i]-} ]] && __shcomp_descs[$__word]=${__descs[$__i]}; done }'
+# compadd is a builtin; a function of the same name shadows it, so every call
+# from _arguments, _alternative, or _describe reaches this capture.  Passing
+# -O asks zsh to return the matches instead of adding them, while still
+# applying its real prefix and matcher filtering.  The display arrays (-D and
+# -d) keep the descriptions the vendor supplied.
+zpty -w z 'compadd() { local -a __args __matches __D __d; local __arg __word __entry __val __desc __orig=; local -i __i __n __opts=1; __args=("$@"); for (( __i = 1; __i <= $#__args; __i++ )); do __arg=$__args[$__i]; if (( __opts )); then case $__arg in --) __opts=0;; -D) __D+=("${__args[$((__i+1))]}");; -d) __d+=("${__args[$((__i+1))]}");; -O) __orig=${__args[$((__i+1))]};; esac; fi; done; if [[ -n $__orig ]]; then builtin compadd "$@"; __matches=("${(@P)__orig}"); else builtin compadd -O __matches "$@"; fi; __n=${#__matches}; for (( __i = 1; __i <= __n; __i++ )); do __word=${__matches[$__i]}; [[ -n $__word ]] || continue; [[ -n ${__shcomp_seen[$__word]-} ]] && continue; __shcomp_seen[$__word]=1; __shcomp_matches+=("$__word"); for __arg in "${(@)__D}"; do for __entry in "${(@P)__arg}"; do __val=${__entry%%:*}; __desc=${__entry#*:}; __val=${__val//\\:/:}; __desc=${__desc//\\:/:}; if [[ $__val == $__word ]]; then [[ -n $__desc && $__desc != $__val ]] && __shcomp_descs[$__word]=$__desc; continue 3; fi; done; done; for __arg in "${(@)__d}"; do for __entry in "${(@P)__arg}"; do [[ $__entry == *" -- "* ]] || continue; __val=${__entry%%[[:space:]]*}; __desc=${__entry#* -- }; if [[ $__val == $__word ]]; then [[ -n $__desc ]] && __shcomp_descs[$__word]=$__desc; continue 3; fi; done; done; done; }'
+
+# An autoloaded vendor function may only define its completion body on the
+# first call.  The probe calls it again if the autoload produced no matches,
+# and then follows any compdef the script registered.
 zpty -w z "__shcomp_vendor=\${_comps[${(q)command}]-_${command}}"
-zpty -w z "__shcomp_probe() { __shcomp_matches=(); __shcomp_seen=(); __shcomp_descs=(); \"\$__shcomp_vendor\"; local __after=\${_comps[${(q)command}]-}; if [[ -n \$__after && \$__after != \$__shcomp_vendor && \$__after != __shcomp_probe ]]; then \"\$__after\"; fi; local __word; for __word in \"\${__shcomp_matches[@]}\"; do print -r -- \"\$__word\"\$'\\t'\"\${__shcomp_descs[\$__word]-}\"; done > ${(q)out} 2>/dev/null; print -r -- __SHCOMP_DONE__ >> ${(q)out} }"
+zpty -w z "[[ \$+functions[\$__shcomp_vendor] -eq 0 ]] && __shcomp_vendor=_${command}"
+zpty -w z "__shcomp_probe() { __shcomp_matches=(); __shcomp_seen=(); __shcomp_descs=(); local __autoload=0; [[ \${functions[\$__shcomp_vendor]-} == *autoload* ]] && __autoload=1; \"\$__shcomp_vendor\"; (( __autoload && ! \${#__shcomp_matches} )) && \"\$__shcomp_vendor\"; local __after=\${_comps[${(q)command}]-}; if [[ -n \$__after && \$__after != \$__shcomp_vendor && \$__after != __shcomp_probe ]]; then \"\$__after\"; fi; local __word; for __word in \"\${__shcomp_matches[@]}\"; do print -r -- \"\$__word\"\$'\\t'\"\${__shcomp_descs[\$__word]-}\"; done > ${(q)out} 2>/dev/null; print -r -- __SHCOMP_DONE__ >> ${(q)out} }"
 zpty -w z "compdef __shcomp_probe ${(q)command}"
 
 # The line is queued behind the setup commands; ZLE reads it only after they
