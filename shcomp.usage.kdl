@@ -51,6 +51,28 @@ cmd ls help="List selected tools and their completion sources" {
     }
     flag "-h --help" help="Print help" action=help builtin=#true
 }
+cmd search help="Search the registry for a tool to add" {
+    flag "-i --interactive" help="Pick a result from a menu and add it to the config" {
+        conflicts --match-type --no-header --json
+    }
+    flag "-m --match-type" help="Match type: equal, contains, or fuzzy" default=fuzzy {
+        arg <MATCH_TYPE> {
+            choices {
+                choice equal
+                choice contains
+                choice fuzzy
+            }
+        }
+    }
+    flag --no-header help="Do not print the table header" {
+        alias --no-headers hide=#true
+    }
+    flag --json help="Machine-readable output"
+    flag --complete help="Print every reference with its description, for shell completions" hide=#true
+    flag --complete-ids help="Print only references, for shell completions" hide=#true
+    flag "-h --help" help="Print help" action=help builtin=#true
+    arg "[NAME]" help="Name, workspace, or reference to search for"
+}
 cmd add help="Add a tool selection to the config" {
     flag --alias help="Extra command name to register; repeat for several" var=#true {
         arg <ALIAS>

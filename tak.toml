@@ -16,7 +16,10 @@
 # - `startup` is the fixed cost every invocation pays: process start, dynamic
 #   linking, and building the usage-rs command tree. Reading the others against
 #   it separates "shcomp got slower to start" from "this command's path got
-#   slower". `--help` does no config work and touches no network.
+#   slower". `--help` does no config work and touches no network. Adding the
+#   `search` subcommand grew that tree by 1.2%; #40 carries a `Tak-Accept`
+#   trailer for it, because every command added to the tree pays that cost
+#   once at startup.
 # - `ls` resolves the shipped registry, reads the fixture config, and stats each
 #   selected command's cache entry: the read-only path users hit most.
 # - `load` is the shim's cold dispatch — the one command a Tab actually forks.

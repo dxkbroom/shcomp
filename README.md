@@ -59,6 +59,18 @@ shcomp add gh
 shcomp install
 ```
 
+Not sure what to call a tool? `shcomp search` matches against command names,
+aliases, workspaces, and full references, across the embedded registry and your
+own:
+
+```sh
+shcomp search jq
+shcomp search --match-type equal cli/cli
+shcomp search -i
+```
+
+With `-i`, the picker adds what you choose.
+
 `shcomp add` accepts any reference the registry understands, and `--alias`
 registers extra command names:
 
@@ -187,6 +199,7 @@ the hash it fetched for a version-pinned URL.
 | `shcomp uninstall` | Remove shcomp-owned shims. |
 | `shcomp doctor` | Sectioned checks; `--check` runs each generator, `--json` for machines, exits 1 on an error. |
 | `shcomp ls [--all] [--no-header] [--json]` | Selected tools, sources, cache state, and owner. |
+| `shcomp search [name]` | Find a reference to add; `-i` picks from a menu. |
 | `shcomp add <reference>` | Add a selection to the config. |
 | `shcomp clean` | Remove the completion cache. |
 | `shcomp complete-word` | Probe candidates through the target shell. |

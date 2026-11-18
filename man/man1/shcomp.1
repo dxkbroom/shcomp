@@ -30,6 +30,9 @@ Check the configuration and installed shims
 \fBls\fR
 List selected tools and their completion sources
 .TP
+\fBsearch\fR
+Search the registry for a tool to add
+.TP
 \fBadd\fR
 Add a tool selection to the config
 .TP
@@ -138,6 +141,42 @@ Do not print the table header
 .TP
 \fB\-h, \-\-help\fR
 Print help
+.SH "SHCOMP SEARCH"
+Search the registry for a tool to add
+.PP
+\fBUsage:\fR shcomp search [OPTIONS] [<NAME>]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-i, \-\-interactive\fR
+Pick a result from a menu and add it to the config
+.TP
+\fB\-m, \-\-match\-type\fR \fI<MATCH_TYPE>\fR
+Match type: equal, contains, or fuzzy
+.RS
+\fIDefault: \fRfuzzy
+.RE
+.TP
+\fB\-\-no\-header\fR
+Do not print the table header
+.TP
+\fB\-\-json\fR
+Machine\-readable output
+.TP
+\fB\-\-complete\fR
+Print every reference with its description, for shell completions
+.TP
+\fB\-\-complete\-ids\fR
+Print only references, for shell completions
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<NAME>\fR
+Name, workspace, or reference to search for
 .SH "SHCOMP ADD"
 Add a tool selection to the config
 .PP
