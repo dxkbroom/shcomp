@@ -27,6 +27,11 @@ jobs:
 
       - uses: jdx/mise-action@v5
 
+      # The e2e suite drives real zsh completions, and GitHub's runner image
+      # ships neither zsh nor a mise recipe for it, so install it explicitly.
+      - name: Install zsh
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh
+
       - uses: Swatinem/rust-cache@v2
 
       - name: Lint
