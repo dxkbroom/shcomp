@@ -100,9 +100,12 @@ documented; `mise run perf:docs` regenerates that snapshot.
   failure, not a completion.
 - **Version discovery has a fallback.** Prefer the install path; a registry item
   may declare `[tools.version] run` for tools such as `eza` and `gradle`.
-- **Do not fight mise.** Skip commands mise's packslip loader owns, and use
-  uniquely named functions (`__shcomp_*`) so an overlap cannot corrupt either
-  side.
+- **shcomp owns completion for what the user selected.** mise's packslip loader
+  does not overrule an explicit selection; `doctor` and `ls` report the overlap
+  so a duplicate stub can be removed. Keep uniquely named functions
+  (`__shcomp_*`) so an overlap cannot corrupt either side.
+- **shcomp completes itself.** `install` always writes `_shcomp`; it is an
+  implicit selection, never a config entry.
 
 ## Dependencies
 

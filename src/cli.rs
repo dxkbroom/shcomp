@@ -116,7 +116,7 @@ impl Commands {
             Self::Doctor(command) => command.run(),
             Self::Ls(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Search(command) => command.run().map(|()| ExitCode::SUCCESS),
-            Self::Add(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::Add(command) => command.run(),
             Self::Clean(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Schema(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Usage(command) => command.run().map(|()| ExitCode::SUCCESS),

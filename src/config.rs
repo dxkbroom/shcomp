@@ -295,7 +295,12 @@ run = ["{{ bin }}", "completion", "{{ shell }}"]
 }
 
 /// Add one selection to a config document, preserving comments and layout.
-pub fn add_selection(text: &str, reference: &str, aliases: &[String]) -> Result<String> {
+pub fn add_selection(
+    text: &str,
+    reference: &str,
+    aliases: &[String],
+    replace_aliases: bool,
+) -> Result<String> {
     for alias in aliases {
         validate_command_name(alias)?;
     }
@@ -328,7 +333,11 @@ pub fn add_selection(text: &str, reference: &str, aliases: &[String]) -> Result<
         })
         .unwrap_or_default();
 
-    let mut merged = existing_aliases;
+    let mut merged = if replace_aliases {
+        Vec::new()
+    } else {
+        existing_aliases
+    };
     for alias in aliases {
         if !merged.contains(alias) {
             merged.push(alias.clone());
@@ -383,7 +392,7 @@ mod add_tests {
 
     #[test]
     fn adds_a_boolean_selection() {
-        let text = add_selection("", "gh", &[]).unwrap();
+        let text = add_selection("", "gh", &[], false).unwrap();
         assert!(text.contains("[tools]"), "{text}");
         assert!(text.contains("gh = true"), "{text}");
     }
@@ -391,7 +400,7 @@ mod add_tests {
     #[test]
     fn adds_aliases_without_losing_comments() {
         let original = "# keep me\n[tools]\nuv = true\n";
-        let text = add_selection(original, "gh", &["github".to_string()]).unwrap();
+        let text = add_selection(original, "gh", &["github".to_string()], false).unwrap();
         assert!(text.contains("# keep me"), "{text}");
         assert!(text.contains("uv = true"), "{text}");
         assert!(text.contains("aliases = [\"github\"]"), "{text}");
@@ -400,8 +409,16 @@ mod add_tests {
     #[test]
     fn merges_existing_aliases() {
         let original = "[tools]\ngh = { aliases = [\"github\"] }\n";
-        let text = add_selection(original, "gh", &["ghx".to_string()]).unwrap();
+        let text = add_selection(original, "gh", &["ghx".to_string()], false).unwrap();
         assert!(text.contains("\"github\""), "{text}");
+        assert!(text.contains("\"ghx\""), "{text}");
+    }
+
+    #[test]
+    fn force_replaces_existing_aliases() {
+        let original = "[tools]\ngh = { aliases = [\"github\"] }\n";
+        let text = add_selection(original, "gh", &["ghx".to_string()], true).unwrap();
+        assert!(!text.contains("\"github\""), "{text}");
         assert!(text.contains("\"ghx\""), "{text}");
     }
 }

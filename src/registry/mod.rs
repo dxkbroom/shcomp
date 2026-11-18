@@ -270,6 +270,9 @@ pub struct SelectedTool {
     pub shells: Option<Vec<String>>,
     /// Present in the config but disabled: listed with `--all`, never installed.
     pub disabled: bool,
+    /// Installed without a config entry. shcomp's own completion is the only
+    /// one: it follows from using shcomp, not from asking for it.
+    pub implicit: bool,
 }
 
 impl Registry {
@@ -529,6 +532,25 @@ impl Registry {
                 aliases,
                 shells,
                 disabled: selection.disabled(),
+                implicit: false,
+            });
+        }
+
+        // shcomp completes itself. This is a selection, not a config entry: a
+        // user who never writes `shcomp = true` still gets `_shcomp`.
+        const SELF: &str = "dxkbroom/shcomp";
+        if !selected
+            .iter()
+            .any(|tool| tool.resolved.tool.name == "shcomp")
+            && let Ok(resolved) = self.resolve_str(SELF)
+        {
+            selected.push(SelectedTool {
+                reference: SELF.to_string(),
+                resolved,
+                aliases: Vec::new(),
+                shells: None,
+                disabled: false,
+                implicit: true,
             });
         }
         Ok(selected)

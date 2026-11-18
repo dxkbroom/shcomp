@@ -59,6 +59,7 @@ struct Row {
     owner: &'static str,
     description: String,
     disabled: bool,
+    implicit: bool,
 }
 
 impl Row {
@@ -70,6 +71,9 @@ impl Row {
         }
         if self.disabled {
             label.push_str(" (disabled)");
+        }
+        if self.implicit {
+            label.push_str(" (implicit)");
         }
         label
     }
@@ -102,6 +106,7 @@ impl Ls {
                         "owner": row.owner,
                         "description": row.description,
                         "disabled": row.disabled,
+                        "implicit": row.implicit,
                     })
                 })
                 .collect();
@@ -159,12 +164,13 @@ fn rows(config: &Config, registry: &Registry, all: bool) -> Result<Vec<Row>> {
             script,
             key,
             owner: if crate::shell::zsh::mise_owned(command) {
-                "mise"
+                "shcomp+mise"
             } else {
                 "shcomp"
             },
             description: tool.resolved.item.description.clone().unwrap_or_default(),
             disabled: tool.disabled,
+            implicit: tool.implicit,
         });
     }
     Ok(rows)
@@ -225,6 +231,7 @@ mod tests {
             owner: "shcomp",
             description: String::new(),
             disabled: true,
+            implicit: false,
         };
         assert_eq!(row.label(), "gh (github) (disabled)");
     }

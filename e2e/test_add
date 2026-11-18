@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# add writes the selection, reconciles the shim, and previews with --dry-run;
+# shcomp installs its own entry without a config line.
+
+mkdir -p bin
+cat >bin/fake <<'SH'
+#!/bin/sh
+printf '#compdef fake\n_fake() { compadd one; }\n'
+SH
+cat >bin/other <<'SH'
+#!/bin/sh
+printf '#compdef other\n_other() { compadd one; }\n'
+SH
+chmod +x bin/fake bin/other
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+
+[[registry]]
+repo = "example/other"
+main = "other"
+
+[[registry.tools]]
+name = "other"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+
+export PATH="$PWD/bin:$PATH"
+shim="$SHCOMP_DATA_DIR/zsh/site-functions/_fake"
+other_shim="$SHCOMP_DATA_DIR/zsh/site-functions/_other"
+self="$SHCOMP_DATA_DIR/zsh/site-functions/_shcomp"
+
+# A preview changes nothing, and --dry-run-code says there is work to do.
+preview=$("$SHCOMP_BIN" add "example/fake" --dry-run)
+assert_contains_text "$preview" "would add example/fake"
+assert_contains_text "$preview" "would write"
+assert_not_contains_text "$(cat "$SHCOMP_CONFIG")" "[tools]"
+assert_not_exists "$shim"
+
+if "$SHCOMP_BIN" add "example/fake" --dry-run --dry-run-code >/dev/null 2>&1; then
+  fail "--dry-run-code should exit non-zero when there is work"
+fi
+ok "--dry-run-code exits non-zero when there is work"
+
+# A real add writes the selection and the shim.
+out=$("$SHCOMP_BIN" add "example/fake")
+assert_contains_text "$out" "added example/fake"
+assert_file_contains "$SHCOMP_CONFIG" "[tools]"
+assert_file_contains "$SHCOMP_CONFIG" "example/fake"
+assert_file_contains "$shim" "#compdef fake"
+
+# Adding it again is a no-op that still reports the shim.
+again=$("$SHCOMP_BIN" add "example/fake")
+assert_contains_text "$again" "already selected"
+assert_contains_text "$again" "up-to-date"
+
+# And now there is nothing left to do.
+"$SHCOMP_BIN" add "example/fake" --dry-run --dry-run-code >/dev/null
+ok "--dry-run-code exits zero when there is nothing to do"
+
+# --no-install writes only the config.
+"$SHCOMP_BIN" add "example/other" --no-install >/dev/null
+assert_file_contains "$SHCOMP_CONFIG" "example/other"
+assert_not_exists "$other_shim"
+
+# shcomp's own entry needs no config line and is labelled implicit.
+assert_file_contains "$self" "#compdef shcomp"
+implicit=$("$SHCOMP_BIN" ls)
+assert_contains_text "$implicit" "shcomp (implicit)"
+
+ok "add, dry-run, and the implicit self entry"

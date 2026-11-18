@@ -81,7 +81,7 @@ fn findings(config: &Config, registry: &Registry, check: bool) -> Result<Vec<Fin
         findings.push(Finding::warn(
             "mise",
             format!(
-                "deferring to mise's packslip loader for {}; shcomp writes no shim for them",
+                "mise also completes {}; shcomp writes its own shim and wins on fpath, but a mise stub may duplicate candidates",
                 mise.join(", ")
             ),
         ));

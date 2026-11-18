@@ -190,10 +190,9 @@ impl Search {
         };
         crate::cli::add::Add {
             reference: picked,
-            alias: Vec::new(),
+            ..Default::default()
         }
         .run()?;
-        println!("run `shcomp install` to write the shim");
         Ok(())
     }
 }

@@ -18,9 +18,16 @@ has to act on.
 - `shcomp doctor` exits 1 when a check fails, and reports sections instead of
   prose lines.
 - `shcomp add` reconciles by default: it writes the shim and fetches URL
-  sources, like `mise use`. Pass `--no-install` for the v0.0.1 behavior.
+  sources, like `mise use`. Pass `--no-install` for the v0.0.1 behavior. It
+  gains `-n/--dry-run`, `--dry-run-code`, and `-f/--force`, which replaces a
+  selection's aliases instead of merging them.
+- `shcomp install` prints a status table per tool and gains `-n/--dry-run` and
+  `--json`.
+- shcomp installs its own completion without a config entry, and `owner` in
+  `ls` is `shcomp` or `shcomp+mise` rather than `mise`.
 - Commands mise installed from a packslip are no longer skipped: shcomp writes
-  its shim for every selected tool.
+  its shim for every selected tool, and `doctor` reports the overlap so a
+  duplicate mise stub can be removed.
 - A registry source may declare `kind = "usage"`, and `[settings]` gains
   `shells`, `usage_bin`, `log`, and `log_file`.
 
