@@ -1,0 +1,48 @@
+name: perf
+
+# Records instruction counts for every commit that lands on main. Those notes
+# are the history perf-pr compares a pull request against, so this job runs on
+# every push and is never cancelled: a missing commit is a gap in the series.
+#
+# The measurement is only meaningful within one runner class. `runner-class`
+# names the runner image, the CPU class, and the Rust toolchain, and changing any
+# of them starts a fresh series — which is why it is passed here rather than
+# derived from whatever the runner happens to be.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: perf
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Installs Rust and tak from mise.toml. tak-action below runs that tak
+      # (`install: false`) so the instrument is the one this repository pins;
+      # the action still supplies the notes plumbing and valgrind.
+      - uses: jdx/mise-action@v5
+
+      - uses: jdx/tak-action@f3161f1de5a674a67a7c1c877759b4e2d552f70d # v0.1.2
+        with:
+          mode: record
+          install: false
+          install-valgrind: true
+          runner-class: gha-ubuntu-24.04-x64-rust1.99.0
+          run: |
+            cargo build --release --locked
+            tak run --record

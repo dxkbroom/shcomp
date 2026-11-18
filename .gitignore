@@ -1,2 +1,13 @@
 /target
 /dist
+
+# The tak fixture writes a cache and a data directory; keep the directories but
+# never the generated scripts, so a benchmark run cannot dirty the tree.
+/benchmarks/fixture/cache/*
+!/benchmarks/fixture/cache/.gitkeep
+/benchmarks/fixture/data/*
+!/benchmarks/fixture/data/.gitkeep
+
+# The chart page is regenerated, never committed; the markdown snapshot beside
+# it is.
+/docs/perf/history.html

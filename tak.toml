@@ -1,0 +1,65 @@
+# Instruction-counted benchmarks, measured by tak (https://github.com/jdx/tak).
+#
+# Each subject runs against `benchmarks/fixture`, a committed config and a set of
+# stand-in executables, so no subject depends on what happens to be installed or
+# which host it runs on: PATH is replaced with the fixture's bin directory, and
+# every shcomp directory is redirected into the fixture. That also keeps mise out
+# of the measurement — `ls` in v0.0.1 asks mise about packslip ownership, and an
+# absent mise is the stable answer.
+#
+# Absolute instruction counts are only comparable within one runner class, so the
+# workflows pass `runner-class`; this file does not pin one, or a local run would
+# be recorded as if it were CI.
+#
+# The subjects are deliberately three:
+#
+# - `startup` is the fixed cost every invocation pays: process start, dynamic
+#   linking, and building the usage-rs command tree. Reading the others against
+#   it separates "shcomp got slower to start" from "this command's path got
+#   slower". `--help` does no config work and touches no network.
+# - `ls` resolves the shipped registry, reads the fixture config, and stats each
+#   selected command's cache entry: the read-only path users hit most.
+# - `load` is the shim's cold dispatch — the one command a Tab actually forks.
+#   Its `setup` prewarms the cache so the measurement is the resolve-and-hit
+#   path, not the generator run.
+#
+# `doctor` is absent on purpose: it probes PATH, mise, and every shim directory,
+# so its cost is the machine's, not shcomp's.
+#
+# No `[gate]` and no `[runner]`: a gate of 1% and a runner class are supplied by
+# `.github/workflows/perf.yml` and `perf-pr.yml`, where a comparison actually
+# happens.
+#
+# tak stores its measurements as git notes on `refs/notes/tak`, not as files, and
+# it has no setting to point them elsewhere. `docs/perf/README.md` covers the
+# store, the snapshot under `docs/perf/`, and how to read a number.
+
+[bench.startup]
+cmd = ["./target/release/shcomp", "--help"]
+
+[bench.ls]
+cmd = ["./target/release/shcomp", "ls"]
+env = { SHCOMP_CONFIG = "benchmarks/fixture/config.toml", SHCOMP_REGISTRY_DIR = "benchmarks/fixture/registry", SHCOMP_CACHE_DIR = "benchmarks/fixture/cache", SHCOMP_DATA_DIR = "benchmarks/fixture/data", PATH = "benchmarks/fixture/bin" }
+
+[bench.load]
+cmd = [
+  "./target/release/shcomp",
+  "load",
+  "--shell",
+  "zsh",
+  "--command",
+  "gh",
+  "--bin",
+  "benchmarks/fixture/bin/gh",
+]
+env = { SHCOMP_CONFIG = "benchmarks/fixture/config.toml", SHCOMP_REGISTRY_DIR = "benchmarks/fixture/registry", SHCOMP_CACHE_DIR = "benchmarks/fixture/cache", SHCOMP_DATA_DIR = "benchmarks/fixture/data", PATH = "benchmarks/fixture/bin" }
+setup = [
+  "./target/release/shcomp",
+  "load",
+  "--shell",
+  "zsh",
+  "--command",
+  "gh",
+  "--bin",
+  "benchmarks/fixture/bin/gh",
+]

@@ -67,12 +67,30 @@ remove_isolated_env() {
   rm -rf "$TEST_ISOLATED_DIR" 2>/dev/null || true
 }
 
+# The fixed PATH below keeps version resolution inside the test, but a tool the
+# tests name can still live outside it: mise installs `usage` into its own
+# directory, and `mise` itself is not in /usr/bin. Add only those tools'
+# directories, resolved from the caller's PATH, so the rest stays isolated.
+isolated_path() {
+  local fixed="$ROOT/target/debug:$TEST_HOME/bin:/opt/homebrew/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin:/bin"
+  local dirs="" tool bin dir
+  for tool in zsh fish usage mise; do
+    bin="$(type -P "$tool")" || continue
+    dir="$(dirname "$bin")"
+    case ":$fixed:" in
+      *":$dir:"*) continue ;;
+    esac
+    dirs="${dirs:+$dirs:}$dir"
+  done
+  printf '%s' "$fixed${dirs:+:$dirs}"
+}
+
 within_isolated_env() {
   local env_args=(
     HOME="$TEST_HOME"
     LANG="${LANG:-C.UTF-8}"
     LC_ALL="${LC_ALL:-}"
-    PATH="$ROOT/target/debug:$TEST_HOME/bin:/opt/homebrew/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/usr/bin:/bin"
+    PATH="$(isolated_path)"
     RUST_BACKTRACE="${RUST_BACKTRACE:-1}"
     SHELL="$(type -p bash)"
     TERM="${TERM:-dumb}"

@@ -1,8 +1,12 @@
 [tools]
-usage = "latest"
+# Pinned: `usage` renders completion scripts that tests and benchmarks compare,
+# so a release of it may not silently change a green build.
+usage = "7.3.0"
 rumdl = "0.2.79"
 tombi = "1.9.8"
 rust = "1.99.0"
+# Pinned: the measuring instrument. An upgrade starts a new series.
+tak = "0.0.15"
 
 [env]
 _.path = ["./target/debug"]

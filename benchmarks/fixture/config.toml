@@ -1,0 +1,12 @@
+# A fixed selection for the tak benchmarks.
+#
+# Three rows, one per transport (a `run` source, another `run` source, and a
+# `url` source), so `shcomp ls` exercises every branch it has without needing
+# any of these tools installed. `SHCOMP_REGISTRY_DIR` points at the empty
+# `registry/` beside this file, so a developer's own registry items cannot
+# change the row count between machines.
+
+[tools]
+gh = true
+uv = true
+eza = true
