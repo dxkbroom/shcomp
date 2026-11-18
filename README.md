@@ -8,8 +8,17 @@ installs a thin shim that dispatches to the right version. Nothing runs at
 shell startup, and switching tool versions does not require regenerating or
 reinstalling anything.
 
-> Status: v0.0.1 targets zsh. bash, fish, Nushell and PowerShell are tracked as
-> follow-up issues.
+> **Pre-v1 software**
+>
+> shcomp is pre-v1. Its CLI, configuration, storage format, and behavior are
+> not finalized.
+>
+> Breaking changes may land between releases, including changes that require
+> existing configuration or cached data to be updated. Every break is listed in
+> `CHANGELOG.md` under the version that makes it.
+
+Status: v0.0.1 targets zsh. bash, fish, Nushell and PowerShell are tracked as
+follow-up issues.
 
 ## Why
 
