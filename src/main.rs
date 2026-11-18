@@ -5,6 +5,16 @@ use shcomp::cli::Cli;
 
 fn main() -> ExitCode {
     let args: Vec<OsString> = std::env::args_os().collect();
+
+    // The completion script calls back with a hidden request rather than a
+    // command anybody runs, so answer it before parsing: the tables it reads
+    // are the ones the parse would build, and nothing else needs to load.
+    let completion_argv: Vec<OsString> = args.iter().skip(1).cloned().collect();
+    if let Some(answer) = Cli::completion_request(&completion_argv) {
+        print!("{answer}");
+        return ExitCode::SUCCESS;
+    }
+
     let argv: Vec<&OsStr> = args.iter().map(OsString::as_os_str).collect();
     match Cli::parse_from_argv(&argv) {
         Ok(cli) => match cli.run() {

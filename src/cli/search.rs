@@ -6,6 +6,7 @@
 
 use demand::{DemandOption, Select};
 use eyre::{Result, bail};
+use usage_rs::complete::{Candidate, CompleteCtx};
 
 use crate::config::Config;
 use crate::registry::Registry;
@@ -20,7 +21,7 @@ pub enum MatchType {
 #[derive(Debug, usage_rs::Args)]
 pub struct Search {
     /// Name, workspace, or reference to search for
-    #[usage(arg)]
+    #[usage(arg, complete = crate::cli::search::complete_name)]
     pub name: Option<String>,
 
     /// Pick a result from a menu and add it to the config
@@ -195,6 +196,36 @@ impl Search {
         .run()?;
         Ok(())
     }
+}
+
+/// Candidate references for a shell, filtered by the word being typed.
+///
+/// This is the one answer behind `add <TAB>`, `complete-word <TAB>`, and the
+/// hidden `search --complete` endpoint, so a shell and a user see the same
+/// corpus. A failure here yields no candidates: a Tab must never print an error.
+pub fn candidates(prefix: &str) -> Vec<Candidate<'static>> {
+    let Ok(config) = Config::load_default() else {
+        return Vec::new();
+    };
+    let Ok(registry) = Registry::load(&config) else {
+        return Vec::new();
+    };
+    search(&registry, prefix, MatchType::Fuzzy)
+        .into_iter()
+        .map(|hit| Candidate {
+            value: hit.reference,
+            description: (!hit.description.is_empty()).then(|| hit.description.into()),
+            ..Candidate::new(String::new())
+        })
+        .collect()
+}
+
+/// The completer for `search <NAME>`.
+fn complete_name(
+    _search: &<Search as usage_rs::spec::CommandArgs>::Partial,
+    ctx: &CompleteCtx<'_>,
+) -> Vec<Candidate<'static>> {
+    candidates(ctx.prefix)
 }
 
 /// Every tool of every item, filtered and ranked by `query`.

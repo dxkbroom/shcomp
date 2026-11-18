@@ -96,6 +96,12 @@ fpath=("$XDG_DATA_HOME/shcomp/zsh/site-functions" $fpath)
 
 Then restart the shell, or run `compinit` again.
 
+shcomp's own completion ships with it: `shcomp install` writes `_shcomp` even
+though there is no `shcomp` entry in your config. Once it is loaded,
+`shcomp add <TAB>` completes every reference the registry knows — including
+items from your own registry — with the description beside it.
+`shcomp search <TAB>` and `shcomp complete-word <TAB>` use the same corpus.
+
 `shcomp ls` answers the questions you actually have about an entry: what it is
 called (with its aliases), which workspace it came from, how its completion is
 produced, whether the next Tab will be warm or cold, who owns it when mise also

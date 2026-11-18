@@ -2,6 +2,8 @@
 
 use eyre::Result;
 
+use usage_rs::complete::{Candidate, CompleteCtx};
+
 use crate::config::Config;
 use crate::registry::Registry;
 
@@ -16,12 +18,20 @@ pub struct CompleteWord {
     pub cword: Option<usize>,
 
     /// Tool reference, optionally with `@version`
-    #[usage(arg)]
+    #[usage(arg, complete = crate::cli::complete_word::complete_tool)]
     pub tool: String,
 
     /// Words typed so far, starting with the command
     #[usage(arg, var_max = 4294967296)]
     pub words: Vec<String>,
+}
+
+/// The completer for `complete-word <TOOL>`.
+fn complete_tool(
+    _complete_word: &<CompleteWord as usage_rs::spec::CommandArgs>::Partial,
+    ctx: &CompleteCtx<'_>,
+) -> Vec<Candidate<'static>> {
+    crate::cli::search::candidates(ctx.prefix)
 }
 
 impl CompleteWord {
