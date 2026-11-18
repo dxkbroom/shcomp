@@ -207,6 +207,7 @@ pub fn generate(
     cache_root: &Path,
 ) -> Result<String> {
     if let Some(run) = &source.run {
+        tracing::debug!(argv = ?run, env = ?source.env, "running generator");
         return run_command(run, source, context, timeout);
     }
     if let Some(path) = &source.path {

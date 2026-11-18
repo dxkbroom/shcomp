@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# -v raises the level, -q leaves errors only, SHCOMP_LOG narrows it to a
+# module, and SHCOMP_LOG_FILE records the same events without touching stdout.
+
+mkdir -p registry bin
+cat >registry/cli-cli.toml <<'TOML'
+repo = "cli/cli"
+main = "gh"
+description = "GitHub's official command line tool"
+
+[[tools]]
+name = "gh"
+aliases = ["github"]
+
+[tools.completions.zsh]
+run = ["{{ bin }}", "completion", "-s", "{{ shell }}"]
+TOML
+cat >bin/gh <<'SH'
+#!/bin/sh
+printf '#compdef gh\n_gh() { compadd one; }\n'
+SH
+chmod +x bin/gh
+export SHCOMP_REGISTRY_DIR="$PWD/registry"
+export PATH="$PWD/bin:$PATH"
+
+# A higher layer overriding a lower one is a warning: shown by default, hidden
+# by -q.
+warning=$("$SHCOMP_BIN" ls 2>&1 >/dev/null)
+assert_contains_text "$warning" "overridden"
+
+quiet=$("$SHCOMP_BIN" -q ls 2>&1 >/dev/null)
+assert_not_contains_text "$quiet" "overridden"
+
+verbose=$("$SHCOMP_BIN" -v ls 2>&1 >/dev/null)
+assert_contains_text "$verbose" "dispatch"
+assert_contains_text "$verbose" 'command="ls"'
+
+targeted=$(SHCOMP_LOG=shcomp::registry=debug "$SHCOMP_BIN" ls 2>&1 >/dev/null)
+assert_contains_text "$targeted" "registry layer"
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+gh = true
+TOML
+
+# stdout stays byte-clean while logs go to stderr.
+path=$(SHCOMP_LOG=debug "$SHCOMP_BIN" load --shell zsh --command gh --bin "$PWD/bin/gh" 2>/dev/null)
+assert_contains_text "$path" ".zsh"
+assert_not_contains_text "$path" "DEBUG"
+
+# A file receives the events even when stderr is unavailable, which is the only
+# way to see what happened inside a Tab.
+log="$PWD/log.txt"
+SHCOMP_LOG_FILE="$log" "$SHCOMP_BIN" -v ls >/dev/null 2>&1
+assert_file_contains "$log" "dispatch"
+
+ok "logging flags, filter, and file sink"

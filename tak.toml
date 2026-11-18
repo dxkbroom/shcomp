@@ -19,7 +19,10 @@
 #   slower". `--help` does no config work and touches no network. Adding the
 #   `search` subcommand grew that tree by 1.2%; #40 carries a `Tak-Accept`
 #   trailer for it, because every command added to the tree pays that cost
-#   once at startup.
+#   once at startup. `logging` cost another 2.8% (#43): `--help` never installs
+#   the subscriber, so that part is the two new global flags in the tree plus
+#   the tracing dependency graph enlarging what the dynamic linker resolves
+#   before `main` runs. #43 carries a `Tak-Accept` trailer for it as well.
 # - `ls` resolves the shipped registry, reads the fixture config, and stats each
 #   selected command's cache entry: the read-only path users hit most.
 # - `load` is the shim's cold dispatch — the one command a Tab actually forks.

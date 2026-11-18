@@ -388,18 +388,23 @@ Each layer is green on its own and reviewable alone. The stack is bottom-up.
    `--complete-ids` endpoints.
 6. `feat(workflow)` — `add` reconciles like `mise use` (`-n/--dry-run`,
    `--dry-run-code`, `--no-install`, `-f/--force`), `install` reports a table
-   and gains `-n/--dry-run` and `--json`, reference completion is wired to
-   `search`, shcomp's own entry is installed implicitly, mise deference is
-   removed, and `tracing` lands.
-7. `fix(gradle)` — the zsh shim calls the captured body with
+   and gains `-n/--dry-run` and `--json`, shcomp's own entry is installed
+   implicitly, mise deference is removed, and `completion --install` goes away.
+7. `feat(completion)` — `add`, `search`, and `complete-word` answer their
+   reference arguments with typed completers over the registry corpus, and `main`
+   answers the hidden `__complete_word__` protocol.
+8. `feat(logging)` — `tracing` with `-v`/`-q`, `SHCOMP_LOG`, `SHCOMP_LOG_FILE`,
+   `[settings].log` / `log_file`, and events along resolve, load, generate, and
+   reconcile.
+9. `fix(gradle)` — the zsh shim calls the captured body with
    `setopt local_options no_nomatch`; `doctor --check` runs a smoke completion
    and attributes a failure to the vendor; README troubleshooting entry; the
    two issues.
-8. `feat(fish)` — `${XDG_DATA_HOME}/shcomp/fish/completions`, a
+10. `feat(fish)` — `${XDG_DATA_HOME}/shcomp/fish/completions`, a
    `fish_complete_path` loading line, the parent-side dispatch check, a
    `complete-word --shell fish` harness built on `complete -C`, and the
    `-s/--shell` / `[settings].shells` selection.
-9. `feat(usage-spec)` — `kind = "usage"` sources brokered through the `usage`
+11. `feat(usage-spec)` — `kind = "usage"` sources brokered through the `usage`
    CLI, with a version-scoped spec cache key.
 
 ### Decisions

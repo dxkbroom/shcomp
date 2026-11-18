@@ -3,6 +3,8 @@ bin shcomp
 version "0.0.1"
 about "Manage shell completions that follow the active tool version"
 arg_required_else_help #true
+flag "-v --verbose" help="Print more detail; repeat for more" global=#true count=#true var=#true
+flag "-q --quiet" help="Report errors only" global=#true
 flag "-h --help" help="Print help" action=help builtin=#true
 flag "-V --version" help="Print version" action=version builtin=#true
 cmd install help="Install and reconcile shell shims for the selected tools" {

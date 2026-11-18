@@ -17,16 +17,24 @@ fn main() -> ExitCode {
 
     let argv: Vec<&OsStr> = args.iter().map(OsString::as_os_str).collect();
     match Cli::parse_from_argv(&argv) {
-        Ok(cli) => match cli.run() {
-            Ok(code) => code,
-            Err(err) => {
-                eprintln!("shcomp: {err}");
-                for cause in err.chain().skip(1) {
-                    eprintln!("  caused by: {cause}");
-                }
-                ExitCode::FAILURE
+        Ok(cli) => {
+            shcomp::logging::init(cli.verbose, cli.quiet);
+            // The config may raise or redirect the log; a broken one is the
+            // command's error to report, not logging's.
+            if let Ok(config) = shcomp::config::Config::load_default() {
+                shcomp::logging::configure(&config.settings);
             }
-        },
+            match cli.run() {
+                Ok(code) => code,
+                Err(err) => {
+                    eprintln!("shcomp: {err}");
+                    for cause in err.chain().skip(1) {
+                        eprintln!("  caused by: {cause}");
+                    }
+                    ExitCode::FAILURE
+                }
+            }
+        }
         Err(error) => {
             if let usage_rs::Error::Version { .. } = error {
                 println!("shcomp {}", env!("CARGO_PKG_VERSION"));
