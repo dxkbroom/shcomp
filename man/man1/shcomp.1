@@ -73,6 +73,9 @@ Generate scripts for the active versions now
 \fB\-n, \-\-dry\-run\fR
 Print what would change without changing it
 .TP
+\fB\-s, \-\-shell\fR \fI<SHELL>\fR
+Shells to reconcile; defaults to the `shells` setting
+.TP
 \fB\-\-json\fR
 Machine\-readable output
 .TP
@@ -88,6 +91,9 @@ Remove shcomp\-owned shims
 .TP
 \fB\-\-dry\-run\fR
 Print what would be removed without removing it
+.TP
+\fB\-s, \-\-shell\fR \fI<SHELL>\fR
+Shells to clean; defaults to the `shells` setting
 .TP
 \fB\-h, \-\-help\fR
 Print help
@@ -107,6 +113,9 @@ Target shell
 .TP
 \fB\-\-cword\fR \fI<CWORD>\fR
 Index of the word being completed; defaults to the last word
+.TP
+\fB\-\-json\fR
+Machine\-readable output
 .TP
 \fB\-h, \-\-help\fR
 Print help
@@ -177,10 +186,10 @@ Do not print the table header
 Machine\-readable output
 .TP
 \fB\-\-complete\fR
-Print every reference with its description, for shell completions
+Print every candidate with its description, for shell completions
 .TP
 \fB\-\-complete\-ids\fR
-Print only references, for shell completions
+Print only candidate values, for shell completions
 .TP
 \fB\-h, \-\-help\fR
 Print help

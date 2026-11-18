@@ -115,7 +115,15 @@ impl Ls {
         }
 
         let mut table = crate::report::table(
-            &["Tool", "Repo", "Source", "Cache", "Owner", "Description"],
+            &[
+                "Tool",
+                "Repo",
+                "Source",
+                "Shells",
+                "Cache",
+                "Owner",
+                "Description",
+            ],
             self.no_header,
         );
         for row in &rows {
@@ -123,6 +131,7 @@ impl Ls {
                 Cell::new(row.label()),
                 Cell::new(&row.repo),
                 Cell::new(&row.source),
+                Cell::new(row.shells.join(",")),
                 Cell::new(row.cache.as_str()),
                 Cell::new(row.owner),
                 Cell::new(&row.description),
@@ -154,10 +163,8 @@ fn rows(config: &Config, registry: &Registry, all: bool) -> Result<Vec<Row>> {
             tool: command.clone(),
             aliases: tool.aliases.clone(),
             repo: tool.resolved.repo_slug().unwrap_or_else(|| "-".to_string()),
-            source: tool
-                .resolved
-                .tool
-                .source("zsh")
+            source: preferred_shell(&tool)
+                .and_then(|shell| tool.resolved.tool.source(shell))
                 .map_or("none".to_string(), |source| source.kind_name().to_string()),
             shells: tool.resolved.tool.completions.keys().cloned().collect(),
             cache,
@@ -176,12 +183,23 @@ fn rows(config: &Config, registry: &Registry, all: bool) -> Result<Vec<Row>> {
     Ok(rows)
 }
 
+/// The shell whose source the table describes: zsh when the tool has one,
+/// otherwise the first managed shell it does have.
+fn preferred_shell(tool: &SelectedTool) -> Option<&'static str> {
+    ["zsh", "fish"]
+        .into_iter()
+        .find(|shell| tool.resolved.tool.source(shell).is_some())
+}
+
 fn cache_state(
     config: &Config,
     tool: &SelectedTool,
 ) -> (CacheState, Option<String>, Option<String>) {
     let command = &tool.resolved.tool.name;
-    let Some(source) = tool.resolved.tool.source("zsh") else {
+    let Some(shell) = preferred_shell(tool) else {
+        return (CacheState::NoSource, None, None);
+    };
+    let Some(source) = tool.resolved.tool.source(shell) else {
         return (CacheState::NoSource, None, None);
     };
     let Ok(root) = crate::cache::cache_root(config) else {
@@ -190,10 +208,10 @@ fn cache_state(
     let Ok(bin) = crate::source::resolve_binary(command) else {
         return (CacheState::Missing, None, None);
     };
-    let Ok(key) = crate::cache::key_for(&bin, source, "zsh") else {
+    let Ok(key) = crate::cache::key_for(&bin, source, shell) else {
         return (CacheState::Missing, None, None);
     };
-    let Ok(path) = crate::cache::script_cache_path(&root, "zsh", command, &key) else {
+    let Ok(path) = crate::cache::script_cache_path(&root, shell, command, &key) else {
         return (CacheState::Missing, None, None);
     };
     let state = if path.exists() {

@@ -8,3 +8,6 @@ aliases = ["github"]
 
 [tools.completions.zsh]
 run = ["{{ bin }}", "completion", "-s", "{{ shell }}"]
+
+[tools.completions.fish]
+run = ["{{ bin }}", "completion", "-s", "{{ shell }}"]

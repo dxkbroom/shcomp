@@ -7,3 +7,6 @@ name = "zellij"
 
 [tools.completions.zsh]
 run = ["{{ bin }}", "setup", "--generate-completion", "{{ shell }}"]
+
+[tools.completions.fish]
+run = ["{{ bin }}", "setup", "--generate-completion", "{{ shell }}"]

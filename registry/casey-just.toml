@@ -7,3 +7,6 @@ name = "just"
 
 [tools.completions.zsh]
 run = ["{{ bin }}", "--completions", "{{ shell }}"]
+
+[tools.completions.fish]
+run = ["{{ bin }}", "--completions", "{{ shell }}"]

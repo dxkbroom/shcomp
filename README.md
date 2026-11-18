@@ -17,7 +17,7 @@ reinstalling anything.
 > existing configuration or cached data to be updated. Every break is listed in
 > `CHANGELOG.md` under the version that makes it.
 
-Status: v0.0.1 targets zsh. bash, fish, Nushell and PowerShell are tracked as
+Status: v0.1.0 targets zsh and fish. bash, Nushell and PowerShell are tracked as
 follow-up issues.
 
 ## Why
@@ -95,6 +95,22 @@ fpath=("$XDG_DATA_HOME/shcomp/zsh/site-functions" $fpath)
 ```
 
 Then restart the shell, or run `compinit` again.
+
+For fish, the same install writes
+`${XDG_DATA_HOME}/shcomp/fish/completions`, and the one line goes in
+`~/.config/fish/config.fish`:
+
+```fish
+set -p fish_complete_path "$XDG_DATA_HOME/shcomp/fish/completions"
+```
+
+`install -s fish` (or `-s zsh`) narrows a run; `[settings].shells` sets the
+default, which is both shells. A tool gets a fish shim only when its registry
+item declares a fish source, so a zsh-only vendor script is never guessed at.
+
+Unlike zsh, fish has no per-command completion function to capture, so each
+addition costs one child fish per Tab — never an extra `shcomp`. That tradeoff
+is ADR-0009.
 
 shcomp's own completion ships with it: `shcomp install` writes `_shcomp` even
 though there is no `shcomp` entry in your config. Once it is loaded,
@@ -210,7 +226,7 @@ the hash it fetched for a version-pinned URL.
 
 | Command | Purpose |
 | --- | --- |
-| `shcomp install [-n] [--json]` | Reconcile shims (including shcomp's own) and fetch URL sources. |
+| `shcomp install [-n] [-s <shell>] [--json]` | Reconcile zsh/fish shims (including shcomp's own) and fetch URL sources. |
 | `shcomp uninstall` | Remove shcomp-owned shims. |
 | `shcomp doctor` | Sectioned checks; `--check` runs each generator, `--json` for machines, exits 1 on an error. |
 | `shcomp ls [--all] [--no-header] [--json]` | Selected tools, sources, cache state, and owner. |

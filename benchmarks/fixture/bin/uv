@@ -1,19 +1,26 @@
 #!/bin/sh
-# A stand-in for `uv`, so the benchmark fixture never needs it installed. It
-# answers the one command the astral-sh/uv registry item asks for with a script
-# that passes shcomp's zsh signature check.
+# A stand-in for `uv`, answering whichever shell the registry item asks for.
 #
-# Builtins only: the benchmark replaces PATH with this directory, so the script
-# cannot assume `cat` or any other external command exists.
-printf '%s\n' \
-  '#compdef uv' \
-  '_uv() {' \
-  '  local -a commands' \
-  '  commands=(' \
-  "    'add:Add dependencies to pyproject.toml'" \
-  "    'lock:Update the project lockfile'" \
-  "    'run:Run a command in the project environment'" \
-  "    'sync:Sync the project environment'" \
-  '  )' \
-  "  _describe -t commands 'uv command' commands" \
-  '}'
+# Builtins only: the benchmark replaces PATH with this directory.
+case " $* " in
+  *" fish "*)
+    printf '%s\n' \
+      "complete -c uv -f -a 'add'" \
+      "complete -c uv -f -a 'lock'" \
+      "complete -c uv -f -a 'run'"
+    ;;
+  *)
+    printf '%s\n' \
+      '#compdef uv' \
+      '_uv() {' \
+      '  local -a commands' \
+      '  commands=(' \
+      "    'add:Add dependencies to pyproject.toml'" \
+      "    'lock:Update the project lockfile'" \
+      "    'run:Run a command in the project environment'" \
+      "    'sync:Sync the project environment'" \
+      '  )' \
+      "  _describe -t commands 'uv command' commands" \
+      '}'
+    ;;
+esac

@@ -8,7 +8,7 @@ use usage_rs::complete::{Candidate, CompleteCtx};
 
 use crate::config::Config;
 use crate::registry::Registry;
-use crate::shell::zsh::{self, ShimStatus};
+use crate::shell::ShimStatus;
 
 #[derive(Debug, Default, usage_rs::Args)]
 pub struct Add {
@@ -88,12 +88,23 @@ impl Add {
             }
             let mut work = changed;
             if !self.no_install {
-                let report = zsh::install(&would_be, &Registry::load(&would_be)?, true)?;
-                if let Some(row) = report.row(&command) {
-                    println!("{} {}", row.status.as_str(), row.shim.display());
-                    work |= row.status == ShimStatus::WouldWrite;
+                let registry = Registry::load(&would_be)?;
+                let shells = crate::cli::install::shells(&would_be, &[])?;
+                let reports = crate::cli::install::reconcile(&would_be, &registry, &shells, true)?;
+                for report in &reports {
+                    if let Some(row) = report.row(&command) {
+                        println!(
+                            "{}: {} {}",
+                            report.shell,
+                            row.status.as_str(),
+                            row.shim.display()
+                        );
+                        work |= row.status == ShimStatus::WouldWrite;
+                    }
+                    if let Some(line) = &report.loading {
+                        println!("{line}");
+                    }
                 }
-                println!("{}", zsh::fpath_line(&would_be)?);
             }
             return Ok(if self.dry_run_code && work {
                 ExitCode::FAILURE
@@ -126,17 +137,32 @@ impl Add {
 
         let registry = Registry::load(&would_be)?;
         let notes = crate::cache::prefetch(&would_be, &registry, false, true)?;
-        let report = zsh::install(&would_be, &registry, false)?;
-        if let Some(row) = report.row(&command) {
-            println!("{} {}", row.status.as_str(), row.shim.display());
+        let shells = crate::cli::install::shells(&would_be, &[])?;
+        let reports = crate::cli::install::reconcile(&would_be, &registry, &shells, false)?;
+        for report in &reports {
+            if let Some(row) = report.row(&command) {
+                println!(
+                    "{}: {} {}",
+                    report.shell,
+                    row.status.as_str(),
+                    row.shim.display()
+                );
+            }
         }
         for note in notes {
             println!("{note}");
         }
-        println!(
-            "\nadd this before `compinit`:\n\n{}\n",
-            zsh::fpath_line(&would_be)?
-        );
+        let instructions: Vec<&String> = reports
+            .iter()
+            .filter_map(|report| report.loading.as_ref())
+            .collect();
+        if !instructions.is_empty() {
+            println!("\nadd this to your shell setup:\n");
+            for line in instructions {
+                println!("{line}");
+            }
+            println!();
+        }
         Ok(ExitCode::SUCCESS)
     }
 }
