@@ -44,5 +44,6 @@ jobs:
           install-valgrind: true
           runner-class: gha-ubuntu-24.04-x64-rust1.99.0
           run: |
+            mise run perf:fixture
             cargo build --release --locked
             tak run --record

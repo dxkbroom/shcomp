@@ -8,6 +8,9 @@
 !/benchmarks/fixture/cache/.gitkeep
 /benchmarks/fixture/data/*
 !/benchmarks/fixture/data/.gitkeep
+# `mise run perf:fixture` puts a wrapper for the host's valgrind in the fixture
+# bin so cachegrind can find it; the wrapper is per-host and never committed.
+/benchmarks/fixture/bin/valgrind
 
 # The chart page is regenerated, never committed; the markdown snapshot beside
 # it is.
