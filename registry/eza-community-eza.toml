@@ -4,9 +4,16 @@ description = "A modern replacement for ls"
 
 [[tools]]
 name = "eza"
+shells = ["zsh", "fish", "bash"]
 
 [tools.version]
 run = ["{{ bin }}", "--version"]
 
-[tools.completions.zsh]
+[tools.completions]
 url = "https://raw.githubusercontent.com/eza-community/eza/v{{ version }}/completions/zsh/_eza"
+
+[tools.completions.fish]
+url = "https://raw.githubusercontent.com/eza-community/eza/v{{ version }}/completions/fish/eza.fish"
+
+[tools.completions.bash]
+url = "https://raw.githubusercontent.com/eza-community/eza/v{{ version }}/completions/bash/eza"

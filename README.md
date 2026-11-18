@@ -214,7 +214,19 @@ run = ["{{ bin }}", "generate-completion", "{{ shell }}"]
 [tools.completions.zsh]
 run = ["{{ bin }}", "+nightly"]
 env = { CARGO_COMPLETE = "zsh" }
+
+[tools.completions.zsh]
+kind = "usage"
+run = ["{{ bin }}", "--usage"]
 ```
+
+A `kind = "usage"` source means the command prints a usage KDL spec, and the
+`usage` CLI renders the completion from it — shcomp does not parse the spec
+itself (ADR-0008). `usage` must be on `PATH` wherever that completion runs;
+shcomp passes a binary-scoped cache key, so the spec command runs once per
+installed version. The spec cache lives in `$XDG_CACHE_HOME/usage`, outside
+`shcomp clean`. `--usage-bin` selects a different executable, and
+`[settings].usage_bin` sets the default.
 
 Templates use Tera v2, the same syntax mise uses. `exec()` and `read_file()`
 are deliberately unavailable: rendering a registry item must not run a

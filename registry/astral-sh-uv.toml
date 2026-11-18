@@ -4,9 +4,7 @@ description = "An extremely fast Python package manager"
 
 [[tools]]
 name = "uv"
+shells = ["zsh", "fish", "bash", "pwsh"]
 
-[tools.completions.zsh]
-run = ["{{ bin }}", "generate-shell-completion", "{{ shell }}"]
-
-[tools.completions.fish]
+[tools.completions]
 run = ["{{ bin }}", "generate-shell-completion", "{{ shell }}"]

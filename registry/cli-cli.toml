@@ -5,9 +5,7 @@ description = "GitHub's official command line tool"
 [[tools]]
 name = "gh"
 aliases = ["github"]
+shells = ["zsh", "fish", "bash", "pwsh"]
 
-[tools.completions.zsh]
-run = ["{{ bin }}", "completion", "-s", "{{ shell }}"]
-
-[tools.completions.fish]
+[tools.completions]
 run = ["{{ bin }}", "completion", "-s", "{{ shell }}"]

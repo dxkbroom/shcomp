@@ -1,5 +1,6 @@
 /target
 /dist
+/build
 
 # The tak fixture writes a cache and a data directory; keep the directories but
 # never the generated scripts, so a benchmark run cannot dirty the tree.

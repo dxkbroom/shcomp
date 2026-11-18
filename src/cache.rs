@@ -83,7 +83,7 @@ pub fn load_or_generate(
         .ok_or_else(|| eyre::eyre!("`{command}` has no {shell} completion source"))?;
 
     let bin = source::real_path(bin);
-    let key = key_for(&bin, source, shell)?;
+    let key = key_for(&bin, &source, shell)?;
     let root = cache_root(config)?;
     let cache = script_cache_path(&root, shell, &tool.resolved.tool.name, &key)?;
     tracing::debug!(
@@ -102,8 +102,15 @@ pub fn load_or_generate(
         Some(timeout) => crate::config::parse_duration(timeout)?,
         None => config.settings.timeout()?,
     };
-    let context = context_for(config, tool, shell, &bin, source)?;
-    let script = source::generate(source, &context, timeout, &root)?;
+    let context = context_for(config, tool, shell, &bin, &source)?;
+    let script = source::generate(
+        &source,
+        &context,
+        timeout,
+        &root,
+        &key,
+        &config.settings.usage_bin,
+    )?;
     source::validate_script(&script, shell, source.kind)?;
     write_atomic(&cache, script.as_bytes())?;
     tracing::info!(command = %command, script = %cache.display(), "generated");
@@ -164,10 +171,13 @@ pub fn prefetch(
             messages.push(format!("skipped {command}: not on PATH"));
             continue;
         };
-        for (shell, source) in &tool.resolved.tool.completions {
-            if !crate::shell::managed(shell) {
+        for shell in tool.resolved.tool.completed_shells() {
+            if !crate::shell::managed(&shell) {
                 continue;
             }
+            let Some(source) = tool.resolved.tool.source(&shell) else {
+                continue;
+            };
             if let Some(url) = &source.url {
                 if !fetch {
                     messages.push(format!(
@@ -176,7 +186,7 @@ pub fn prefetch(
                     continue;
                 }
                 let fetched = (|| -> Result<()> {
-                    let context = context_for(config, &tool, shell, &bin, source)?;
+                    let context = context_for(config, &tool, &shell, &bin, &source)?;
                     let url = crate::template::render(url, &context)?;
                     let timeout = match &source.timeout {
                         Some(timeout) => crate::config::parse_duration(timeout)?,
@@ -191,7 +201,7 @@ pub fn prefetch(
                 }
             }
             if prewarm {
-                match load_or_generate(config, registry, &command, shell, &bin) {
+                match load_or_generate(config, registry, &command, &shell, &bin) {
                     Ok(_) => messages.push(format!("generated {command} {shell}")),
                     Err(error) => messages.push(format!("skipped {command} {shell}: {error}")),
                 }

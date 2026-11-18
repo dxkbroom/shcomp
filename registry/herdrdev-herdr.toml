@@ -4,6 +4,7 @@ description = "The runtime coding agents live on"
 
 [[tools]]
 name = "herdr"
+shells = ["zsh", "fish", "bash"]
 
-[tools.completions.zsh]
+[tools.completions]
 run = ["{{ bin }}", "completion", "{{ shell }}"]

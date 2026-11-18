@@ -4,6 +4,13 @@ description = "A fast all-in-one JavaScript runtime"
 
 [[tools]]
 name = "bun"
+shells = ["zsh", "fish", "bash"]
 
-[tools.completions.zsh]
+[tools.completions]
 url = "https://raw.githubusercontent.com/oven-sh/bun/bun-v{{ version }}/completions/bun.zsh"
+
+[tools.completions.fish]
+url = "https://raw.githubusercontent.com/oven-sh/bun/bun-v{{ version }}/completions/bun.fish"
+
+[tools.completions.bash]
+url = "https://raw.githubusercontent.com/oven-sh/bun/bun-v{{ version }}/completions/bun.bash"

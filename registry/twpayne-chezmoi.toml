@@ -4,9 +4,7 @@ description = "Manage your dotfiles across multiple machines"
 
 [[tools]]
 name = "chezmoi"
+shells = ["zsh", "fish", "bash", "nushell"]
 
-[tools.completions.zsh]
-run = ["{{ bin }}", "completion", "{{ shell }}"]
-
-[tools.completions.fish]
+[tools.completions]
 run = ["{{ bin }}", "completion", "{{ shell }}"]
