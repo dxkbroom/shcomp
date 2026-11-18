@@ -7,6 +7,7 @@ pub mod config;
 pub mod dirs;
 pub mod reference;
 pub mod registry;
+pub mod report;
 pub mod schema;
 pub mod shell;
 pub mod source;

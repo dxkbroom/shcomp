@@ -77,6 +77,12 @@ fpath=("$XDG_DATA_HOME/shcomp/zsh/site-functions" $fpath)
 
 Then restart the shell, or run `compinit` again.
 
+`shcomp ls` answers the questions you actually have about an entry: what it is
+called (with its aliases), which workspace it came from, how its completion is
+produced, whether the next Tab will be warm or cold, who owns it when mise also
+provides one, and what the registry says it is. `--all` adds selections you have
+disabled, and `--json` carries the same fields for scripts.
+
 ## Config
 
 `${XDG_CONFIG_HOME}/shcomp/config.toml` declares which tools you want. It does
@@ -179,8 +185,8 @@ the hash it fetched for a version-pinned URL.
 | --- | --- |
 | `shcomp install` | Reconcile shims and fetch URL sources. |
 | `shcomp uninstall` | Remove shcomp-owned shims. |
-| `shcomp doctor` | Read-only checks; `--check` runs each generator. |
-| `shcomp ls [--json]` | Selected tools, sources, and cache state. |
+| `shcomp doctor` | Sectioned checks; `--check` runs each generator, `--json` for machines, exits 1 on an error. |
+| `shcomp ls [--all] [--no-header] [--json]` | Selected tools, sources, cache state, and owner. |
 | `shcomp add <reference>` | Add a selection to the config. |
 | `shcomp clean` | Remove the completion cache. |
 | `shcomp complete-word` | Probe candidates through the target shell. |

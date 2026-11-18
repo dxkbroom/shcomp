@@ -18,6 +18,7 @@ name = "shcomp"
 path = "src/main.rs"
 
 [dependencies]
+comfy-table = "8"
 dirs = "6"
 eyre = "0.6"
 hex = "0.4"

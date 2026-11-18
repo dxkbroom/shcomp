@@ -46,6 +46,6 @@ assert_contains_text "$out" "skipped fake"
 assert_not_exists "$SHCOMP_DATA_DIR/zsh/site-functions/_fake"
 
 doctor=$("$SHCOMP_BIN" doctor)
-assert_contains_text "$doctor" "mise's packslip loader owns it"
+assert_contains_text "$doctor" "deferring to mise's packslip loader for fake"
 
 ok "mise packslip deference"

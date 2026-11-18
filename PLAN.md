@@ -378,8 +378,8 @@ Each layer is green on its own and reviewable alone. The stack is bottom-up.
    job after this layer merges, never from a developer machine.
 2. `docs(pre-v1)` — the notice, the breaking-change table, and the `0.1.0`
    changelog heading.
-3. `refactor(cli)` — `src/cli/` with `mod.rs` and one module per command,
-   following the mise layout. Behavior unchanged.
+3. `refactor(cli)` — `src/cli.rs` with one module per command under
+   `src/cli/`, following the mise layout. Behavior unchanged.
 4. `feat(ui)` — a shared table/report module; `ls` becomes a table and gains
    `--no-header`, `--all`, and the new `--json`; `doctor` becomes a sectioned
    report with `ok` / `warn` / `error`, `--json`, and a non-zero exit on error.

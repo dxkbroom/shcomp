@@ -8,7 +8,7 @@ fn main() -> ExitCode {
     let argv: Vec<&OsStr> = args.iter().map(OsString::as_os_str).collect();
     match Cli::parse_from_argv(&argv) {
         Ok(cli) => match cli.run() {
-            Ok(()) => ExitCode::SUCCESS,
+            Ok(code) => code,
             Err(err) => {
                 eprintln!("shcomp: {err}");
                 for cause in err.chain().skip(1) {

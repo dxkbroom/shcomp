@@ -40,10 +40,15 @@ cmd complete-word help="Probe completion candidates through the target shell" {
 }
 cmd doctor help="Check the configuration and installed shims" {
     flag --check help="Run each generator and validate its output"
+    flag --json help="Machine-readable output"
     flag "-h --help" help="Print help" action=help builtin=#true
 }
 cmd ls help="List selected tools and their completion sources" {
     flag --json help="Machine-readable output"
+    flag --all help="Include disabled selections"
+    flag --no-header help="Do not print the table header" {
+        alias --no-headers hide=#true
+    }
     flag "-h --help" help="Print help" action=help builtin=#true
 }
 cmd add help="Add a tool selection to the config" {

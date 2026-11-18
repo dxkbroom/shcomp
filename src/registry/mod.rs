@@ -268,6 +268,8 @@ pub struct SelectedTool {
     pub resolved: ResolvedTool,
     pub aliases: Vec<String>,
     pub shells: Option<Vec<String>>,
+    /// Present in the config but disabled: listed with `--all`, never installed.
+    pub disabled: bool,
 }
 
 impl Registry {
@@ -493,12 +495,21 @@ impl Registry {
         self.resolve(&Reference::parse(reference)?)
     }
 
+    /// The selections `install` acts on: everything in the config that is not
+    /// disabled.
     pub fn selected(&self, config: &Config) -> Result<Vec<SelectedTool>> {
+        Ok(self
+            .selections(config)?
+            .into_iter()
+            .filter(|tool| !tool.disabled)
+            .collect())
+    }
+
+    /// Every selection in the config, disabled ones included. `ls --all` and
+    /// `ls --json` report from this list.
+    pub fn selections(&self, config: &Config) -> Result<Vec<SelectedTool>> {
         let mut selected = Vec::new();
         for (reference, selection) in &config.tools {
-            if selection.disabled() {
-                continue;
-            }
             let resolved = self
                 .resolve_str(reference)
                 .wrap_err_with(|| format!("cannot resolve `{reference}`"))?;
@@ -517,6 +528,7 @@ impl Registry {
                 resolved,
                 aliases,
                 shells,
+                disabled: selection.disabled(),
             });
         }
         Ok(selected)

@@ -4,6 +4,8 @@
 //! command lives in its own module, with its flags and its work beside each
 //! other; a command that grows subcommands becomes a directory.
 
+use std::process::ExitCode;
+
 use eyre::Result;
 
 pub mod add;
@@ -82,33 +84,37 @@ pub enum Commands {
 }
 
 impl Cli {
-    pub fn run(self) -> Result<()> {
+    pub fn run(self) -> Result<ExitCode> {
         match self.command {
             Some(command) => command.run(),
             None => {
                 if let Some(help) = Self::render_help(Self::spec().root.cmd, false) {
                     println!("{help}");
                 }
-                Ok(())
+                Ok(ExitCode::SUCCESS)
             }
         }
     }
 }
 
 impl Commands {
-    pub fn run(self) -> Result<()> {
+    /// Dispatch, and report the exit code the command asks for.
+    ///
+    /// Only `doctor` can fail a check without failing the process: a found
+    /// problem is a result, not an error, so it exits 1 without an eyre report.
+    pub fn run(self) -> Result<ExitCode> {
         match self {
-            Self::Install(command) => command.run(),
-            Self::Uninstall(command) => command.run(),
-            Self::Load(command) => command.run(),
-            Self::CompleteWord(command) => command.run(),
+            Self::Install(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::Uninstall(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::Load(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::CompleteWord(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Doctor(command) => command.run(),
-            Self::Ls(command) => command.run(),
-            Self::Add(command) => command.run(),
-            Self::Clean(command) => command.run(),
-            Self::Schema(command) => command.run(),
-            Self::Usage(command) => command.run(),
-            Self::Completion(command) => command.run(),
+            Self::Ls(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::Add(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::Clean(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::Schema(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::Usage(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::Completion(command) => command.run().map(|()| ExitCode::SUCCESS),
         }
     }
 }
