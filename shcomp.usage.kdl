@@ -98,8 +98,15 @@ cmd add help="Add a tool selection to the config" {
     arg <REFERENCE> help="Tool reference to add"
     complete reference run="shcomp __complete_word__ --candidates reference --line={{ words | shell_join | shell_quote }}"
 }
-cmd clean help="Remove the completion cache" {
+cmd clean help="Remove cached completion scripts, or only the stale ones" {
+    flag --stale help="Remove only scripts no `shcomp load` can reach any more"
+    flag "-s --shell" help="Only this shell's scripts" {
+        arg <SHELL>
+    }
+    flag "-n --dry-run" help="Print what would be removed without removing it"
     flag "-h --help" help="Print help" action=help builtin=#true
+    arg "[TOOL]..." help="Only these tools' scripts; defaults to every tool"
+    complete tool run="shcomp __complete_word__ --candidates tool --line={{ words | shell_join | shell_quote }}"
 }
 cmd schema help="Print the JSON Schema for the config or a registry item" {
     flag --registry help="Print the registry-item schema instead of the config schema"

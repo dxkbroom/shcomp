@@ -43,7 +43,7 @@ Search the registry for a tool to add
 Add a tool selection to the config
 .TP
 \fBclean\fR
-Remove the completion cache
+Remove cached completion scripts, or only the stale ones
 .TP
 \fBschema\fR
 Print the JSON Schema for the config or a registry item
@@ -229,15 +229,29 @@ Print help
 \fB<REFERENCE>\fR
 Tool reference to add
 .SH "SHCOMP CLEAN"
-Remove the completion cache
+Remove cached completion scripts, or only the stale ones
 .PP
-\fBUsage:\fR shcomp clean [OPTIONS]
+\fBUsage:\fR shcomp clean [OPTIONS] [<TOOL>] ...
 .PP
 \fBOptions:\fR
 .PP
 .TP
+\fB\-\-stale\fR
+Remove only scripts no `shcomp load` can reach any more
+.TP
+\fB\-s, \-\-shell\fR \fI<SHELL>\fR
+Only this shell's scripts
+.TP
+\fB\-n, \-\-dry\-run\fR
+Print what would be removed without removing it
+.TP
 \fB\-h, \-\-help\fR
 Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<TOOL>\fR
+Only these tools' scripts; defaults to every tool
 .SH "SHCOMP SCHEMA"
 Print the JSON Schema for the config or a registry item
 .PP

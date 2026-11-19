@@ -5,6 +5,14 @@
 A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
 "v0.0.3 plan". Entries land with each layer.
 
+### Added
+
+- Cached scripts carry a `<key>.json` sidecar naming the command, shell,
+  binary, and source kind. `shcomp clean --stale` removes the scripts no load
+  can reach, `clean <tool>...` and `clean -s <shell>` scope a removal, and
+  `-n/--dry-run` lists without removing. `install` prunes stale scripts
+  quietly (`install --json` reports `pruned`).
+
 ## v0.0.2
 
 shcomp is pre-v1: this release settles the CLI and is allowed to break v0.0.1.

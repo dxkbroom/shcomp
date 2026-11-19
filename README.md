@@ -126,6 +126,13 @@ produced, whether the next Tab will be warm or cold, who owns it when mise also
 provides one, and what the registry says it is. `--all` adds selections you have
 disabled, and `--json` carries the same fields for scripts.
 
+Every cached script has a sidecar `<key>.json` beside it that names the
+command, shell, and binary it came from. `shcomp clean --stale` uses it to
+remove scripts no Tab can reach any more — the binary is gone, it was rebuilt,
+or the tool is no longer selected — and `-n` lists them first. `install` does
+the same pruning quietly. `shcomp clean gh` and `shcomp clean -s fish` scope a
+full removal; plain `shcomp clean` still removes the whole cache.
+
 ## Config
 
 `${XDG_CONFIG_HOME}/shcomp/config.toml` declares which tools you want. It does
@@ -244,7 +251,7 @@ the hash it fetched for a version-pinned URL.
 | `shcomp ls [--all] [--no-header] [--json]` | Selected tools, sources, cache state, and owner. |
 | `shcomp search [name]` | Find a reference to add; `-i` picks from a menu. |
 | `shcomp add [-n] [--no-install] <reference>` | Add a selection and reconcile its shim. |
-| `shcomp clean` | Remove the completion cache. |
+| `shcomp clean [--stale] [-n] [-s <shell>] [tool...]` | Remove cached scripts: all of them, one tool's or shell's, or only the stale ones. |
 | `shcomp complete-word` | Probe candidates through the target shell. |
 | `shcomp schema [--registry]` | Print JSON Schema. |
 

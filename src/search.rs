@@ -126,6 +126,36 @@ pub(crate) fn candidates(prefix: &str) -> Vec<Candidate<'static>> {
     into_candidates(search(&registry, prefix, MatchType::Fuzzy), prefix)
 }
 
+/// Candidate values for a command that takes a selected tool: the command
+/// names the config completes, aliases included.
+pub(crate) fn selected_candidates(prefix: &str) -> Vec<Candidate<'static>> {
+    let Ok(config) = Config::load_default() else {
+        return Vec::new();
+    };
+    let Ok(registry) = Registry::load(&config) else {
+        return Vec::new();
+    };
+    let Ok(selected) = registry.selected(&config) else {
+        return Vec::new();
+    };
+    let mut seen = std::collections::BTreeSet::new();
+    let mut candidates = Vec::new();
+    for tool in selected {
+        let description = tool.resolved.item.description.clone().unwrap_or_default();
+        for name in std::iter::once(&tool.resolved.tool.name).chain(&tool.aliases) {
+            if !name.starts_with(prefix) || !seen.insert(name.clone()) {
+                continue;
+            }
+            let mut candidate = Candidate::new(name.clone());
+            if !description.is_empty() {
+                candidate.description = Some(description.clone().into());
+            }
+            candidates.push(candidate);
+        }
+    }
+    candidates
+}
+
 /// Turn ranked hits into completion candidates.
 ///
 /// The shell filters candidates by the typed prefix, so the value has to start

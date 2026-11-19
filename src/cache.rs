@@ -113,6 +113,15 @@ pub fn load_or_generate(
     )?;
     source::validate_script(&script, shell, source.kind)?;
     write_atomic(&cache, script.as_bytes())?;
+    let meta = ScriptMeta {
+        command: tool.resolved.tool.name.clone(),
+        shell: shell.to_string(),
+        bin: bin.clone(),
+        kind: source.kind_name().to_string(),
+        created: unix_now(),
+        shcomp: env!("CARGO_PKG_VERSION").to_string(),
+    };
+    write_atomic(&meta_path(&cache), &serde_json::to_vec_pretty(&meta)?)?;
     tracing::info!(command = %command, script = %cache.display(), "generated");
     Ok(cache)
 }
@@ -209,6 +218,150 @@ pub fn prefetch(
         }
     }
     Ok(messages)
+}
+
+/// What produced a cached script (ADR-0011). Written beside the script, as
+/// `<key>.json`, by the call that writes the script.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ScriptMeta {
+    pub command: String,
+    pub shell: String,
+    /// The real path of the binary the key was computed from.
+    pub bin: PathBuf,
+    pub kind: String,
+    /// Seconds since the Unix epoch.
+    pub created: u64,
+    pub shcomp: String,
+}
+
+pub fn meta_path(script: &Path) -> PathBuf {
+    script.with_extension("json")
+}
+
+pub fn read_meta(script: &Path) -> Option<ScriptMeta> {
+    let text = std::fs::read_to_string(meta_path(script)).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+pub fn unix_now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+/// One cached script on disk.
+#[derive(Debug, Clone)]
+pub struct CachedScript {
+    pub path: PathBuf,
+    pub shell: String,
+    pub command: String,
+    pub key: String,
+}
+
+/// Every cached script under the cache root, sorted by path.
+pub fn scripts(root: &Path) -> Vec<CachedScript> {
+    let mut found = Vec::new();
+    let Ok(shells) = std::fs::read_dir(root.join("scripts")) else {
+        return found;
+    };
+    for shell in shells.flatten() {
+        let shell_name = shell.file_name().to_string_lossy().into_owned();
+        let Ok(commands) = std::fs::read_dir(shell.path()) else {
+            continue;
+        };
+        for command in commands.flatten() {
+            let command_name = command.file_name().to_string_lossy().into_owned();
+            let Ok(files) = std::fs::read_dir(command.path()) else {
+                continue;
+            };
+            for file in files.flatten() {
+                let path = file.path();
+                let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+                    continue;
+                };
+                let Some((key, extension)) = name.split_once('.') else {
+                    continue;
+                };
+                // Sidecars and interrupted temporaries are not scripts.
+                if extension == "json" || extension.starts_with("tmp") {
+                    continue;
+                }
+                found.push(CachedScript {
+                    path: path.clone(),
+                    shell: shell_name.clone(),
+                    command: command_name.clone(),
+                    key: key.to_string(),
+                });
+            }
+        }
+    }
+    found.sort_by(|a, b| a.path.cmp(&b.path));
+    found
+}
+
+/// Why a cached script is no longer reachable from any `shcomp load`, or
+/// `None` when it still is.
+pub fn stale_reason(
+    script: &CachedScript,
+    selected: &[crate::registry::SelectedTool],
+) -> Option<String> {
+    let Some(meta) = read_meta(&script.path) else {
+        return Some("no metadata (written by an older shcomp)".to_string());
+    };
+    if !meta.bin.exists() {
+        return Some(format!("{} is gone", meta.bin.display()));
+    }
+    let Some(tool) = selected
+        .iter()
+        .find(|tool| tool.resolved.tool.name == script.command)
+    else {
+        return Some(format!("{} is not selected", script.command));
+    };
+    let Some(source) = tool.resolved.tool.source(&script.shell) else {
+        return Some(format!("{} has no {} source", script.command, script.shell));
+    };
+    match key_for(&meta.bin, &source, &script.shell) {
+        Ok(key) if key == script.key => None,
+        Ok(_) => Some("superseded (the binary or the source changed)".to_string()),
+        Err(error) => Some(error.to_string()),
+    }
+}
+
+/// Remove a script, its sidecar, and the directories it leaves empty.
+pub fn remove_script(root: &Path, script: &Path) -> Result<()> {
+    match std::fs::remove_file(script) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(error).wrap_err_with(|| format!("cannot remove `{}`", script.display()));
+        }
+    }
+    let _ = std::fs::remove_file(meta_path(script));
+    let stop = root.join("scripts");
+    let mut dir = script.parent();
+    while let Some(current) = dir {
+        if current == stop || !current.starts_with(&stop) || std::fs::remove_dir(current).is_err() {
+            break;
+        }
+        dir = current.parent();
+    }
+    Ok(())
+}
+
+/// Remove every stale script quietly; returns how many went.
+pub fn prune(config: &Config, registry: &Registry) -> Result<usize> {
+    let root = cache_root(config)?;
+    let selected = registry.selected(config)?;
+    let mut pruned = 0;
+    for script in scripts(&root) {
+        if let Some(reason) = stale_reason(&script, &selected) {
+            tracing::info!(script = %script.path.display(), %reason, "pruned");
+            remove_script(&root, &script.path)?;
+            pruned += 1;
+        }
+    }
+    Ok(pruned)
 }
 
 fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
@@ -318,6 +471,60 @@ run = ["{{ bin }}"]
         );
         let second = load_or_generate(&config, &registry, "fake", "zsh", &bin).unwrap();
         assert_eq!(first, second);
+    }
+
+    #[test]
+    fn a_generated_script_carries_its_origin() {
+        let (_dir, config, registry, bin) =
+            setup("#!/bin/sh\nprintf '#compdef fake\\n_fake() {}\\n'\n");
+        let script = load_or_generate(&config, &registry, "fake", "zsh", &bin).unwrap();
+        let meta = read_meta(&script).unwrap();
+        assert_eq!(meta.command, "fake");
+        assert_eq!(meta.shell, "zsh");
+        assert_eq!(meta.bin, source::real_path(&bin));
+        assert_eq!(meta.kind, "run");
+        let root = cache_root(&config).unwrap();
+        let found = scripts(&root);
+        assert_eq!(found.len(), 1, "the sidecar is not a script: {found:?}");
+        let selected = registry.selected(&config).unwrap();
+        assert_eq!(stale_reason(&found[0], &selected), None);
+    }
+
+    #[test]
+    fn stale_scripts_are_named_and_pruned() {
+        let (_dir, config, registry, bin) =
+            setup("#!/bin/sh\nprintf '#compdef fake\\n_fake() {}\\n'\n");
+        let script = load_or_generate(&config, &registry, "fake", "zsh", &bin).unwrap();
+        let root = cache_root(&config).unwrap();
+        let selected = registry.selected(&config).unwrap();
+
+        // A script from an older shcomp has no sidecar.
+        let legacy = script.with_file_name("0123.zsh");
+        std::fs::write(&legacy, "#compdef fake\n").unwrap();
+        let found = scripts(&root);
+        let legacy_entry = found.iter().find(|entry| entry.path == legacy).unwrap();
+        assert!(
+            stale_reason(legacy_entry, &selected)
+                .unwrap()
+                .contains("no metadata")
+        );
+
+        // The binary going away makes the real script stale too.
+        std::fs::remove_file(&bin).unwrap();
+        let entry = scripts(&root)
+            .into_iter()
+            .find(|entry| entry.path == script)
+            .unwrap();
+        assert!(stale_reason(&entry, &selected).unwrap().contains("is gone"));
+
+        assert_eq!(prune(&config, &registry).unwrap(), 2);
+        assert!(!script.exists());
+        assert!(!meta_path(&script).exists());
+        assert!(scripts(&root).is_empty());
+        assert!(
+            !root.join("scripts").join("zsh").exists(),
+            "empty dirs go too"
+        );
     }
 
     #[test]
