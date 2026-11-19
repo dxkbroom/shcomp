@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased (0.0.3)
+
+A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
+"v0.0.3 plan". Entries land with each layer.
+
 ## v0.0.2
 
 shcomp is pre-v1: this release settles the CLI and is allowed to break v0.0.1.
