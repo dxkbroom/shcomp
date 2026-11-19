@@ -103,7 +103,8 @@ impl Search {
                 comfy_table::Cell::new(&hit.description),
             ]);
         }
-        crate::report::print(&table);
+        // Description, then Source, give way before a word is split.
+        crate::report::print_dropping(&mut table, &[4, 3]);
         Ok(())
     }
 

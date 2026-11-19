@@ -13,6 +13,7 @@ cat >"$SHCOMP_CONFIG" <<'TOML'
 [tools]
 "example/fake" = { aliases = ["fk"] }
 "example/off" = { disabled = true }
+"example/wide" = true
 
 [[registry]]
 repo = "example/fake"
@@ -20,6 +21,17 @@ main = "fake"
 
 [[registry.tools]]
 name = "fake"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+
+[[registry]]
+repo = "example/wide"
+main = "wide"
+description = "A stand-in whose description is long enough that eighty columns must wrap it"
+
+[[registry.tools]]
+name = "wide"
 
 [registry.tools.completions.zsh]
 run = ["{{ bin }}"]
@@ -54,5 +66,43 @@ json=$("$SHCOMP_BIN" ls --json)
 assert_contains_text "$json" '"state": "missing"'
 assert_contains_text "$json" '"owner": "shcomp"'
 assert_contains_text "$json" '"disabled": true'
+
+# Readable in 80 columns: every line fits and no word is split.
+assert_fits_80() {
+  local label="$1" out="$2" line
+  out=$(printf '%s\n' "$out" | tr -d '\r' | sed $'s/\x1b\\[[0-9;]*m//g')
+  while IFS= read -r line; do
+    if (( ${#line} > 80 )); then
+      fail "$label: a line is wider than 80 columns: [$line]"
+    fi
+  done <<<"$out"
+  assert_contains_text "$out" "example/wide"
+  assert_contains_text "$out" "eighty"
+  ok "$label fits 80 columns without splitting words"
+}
+
+# A pipe sizes itself from an exported COLUMNS, and stays one line per row
+# without one, so grep and awk keep working.
+assert_fits_80 "COLUMNS=80 pipe" "$(COLUMNS=80 "$SHCOMP_BIN" ls)"
+# Too narrow for every column's longest word: Description gives way rather
+# than a word being split.
+narrow=$(COLUMNS=60 "$SHCOMP_BIN" ls)
+while IFS= read -r line; do
+  if (( ${#line} > 60 )); then
+    fail "COLUMNS=60: a line is wider than 60 columns: [$line]"
+  fi
+done <<<"$narrow"
+assert_not_contains_text "$narrow" "Description"
+assert_contains_text "$narrow" "dxkbroom/shcomp"
+unwrapped=$("$SHCOMP_BIN" ls)
+assert_contains_text "$unwrapped" "must wrap it"
+
+# A terminal sizes the table itself, whether or not it is styled.
+if have_cmd script; then
+  for env in "TERM=xterm-256color" "TERM=xterm-256color NO_COLOR=1" "TERM=dumb"; do
+    out=$(env -u COLUMNS $env script -qec "stty cols 80; '$SHCOMP_BIN' ls" /dev/null)
+    assert_fits_80 "a pty with $env" "$out"
+  done
+fi
 
 ok "ls table, --all, --no-header, and --json"

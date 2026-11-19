@@ -28,6 +28,11 @@ has to act on.
   for the vendor body; `doctor --check` also runs one real completion per tool
   and reports a failing one. Filed upstream as
   [gradle/gradle-completion#273](https://github.com/gradle/gradle-completion/issues/273).
+- `ls`, `search`, `doctor`, `install`, and `complete-word` tables fit the
+  terminal without splitting words, styled or not (`NO_COLOR`, `TERM=dumb`).
+  A pipe honours an exported `COLUMNS` and otherwise keeps one line per row.
+  When the longest words still do not fit, `ls` and `search` drop
+  `Description`, then `Source`.
 
 ### Breaking changes
 

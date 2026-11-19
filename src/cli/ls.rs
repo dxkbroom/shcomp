@@ -131,7 +131,7 @@ impl Ls {
                 Cell::new(row.label()),
                 Cell::new(&row.repo),
                 Cell::new(&row.source),
-                Cell::new(row.shells.join(",")),
+                Cell::new(row.shells.join(", ")),
                 Cell::new(row.cache.as_str()),
                 Cell::new(row.owner),
                 Cell::new(&row.description),
@@ -145,7 +145,8 @@ impl Ls {
             }
             table.add_row(cells);
         }
-        crate::report::print(&table);
+        // Description, then Source, give way before a word is split.
+        crate::report::print_dropping(&mut table, &[6, 2]);
         Ok(())
     }
 }

@@ -90,7 +90,7 @@ impl CompleteWord {
                     table.add_row([Cell::new(value), Cell::new(description)]);
                 }
             }
-            crate::report::print(&table);
+            crate::report::print(&mut table);
         }
         Ok(())
     }

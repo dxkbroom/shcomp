@@ -106,7 +106,7 @@ fn render(findings: &[Finding]) {
             comfy_table::Cell::new(&finding.message),
         ]);
     }
-    print(&table);
+    print(&mut table);
 
     let count = |severity: Severity| {
         findings
