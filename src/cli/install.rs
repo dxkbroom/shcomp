@@ -43,6 +43,12 @@ impl Install {
         let fetch = !self.no_fetch && !self.offline && !self.dry_run;
         let notes = crate::cache::prefetch(&config, &registry, self.prewarm, fetch)?;
         let reports = reconcile(&config, &registry, &shells, self.dry_run)?;
+        // Scripts no load can reach go quietly; `-v` names them.
+        let pruned = if self.dry_run {
+            0
+        } else {
+            crate::cache::prune(&config, &registry)?
+        };
 
         // One row per command, one cell per shell. A command with no source for
         // a shell simply has no cell there.
@@ -92,6 +98,7 @@ impl Install {
                 "shells": shells,
                 "tools": tools,
                 "notes": notes,
+                "pruned": pruned,
                 "instructions": instructions,
             });
             println!("{}", serde_json::to_string_pretty(&value)?);

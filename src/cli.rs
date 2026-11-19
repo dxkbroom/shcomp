@@ -83,7 +83,7 @@ pub enum Commands {
     /// Add a tool selection to the config
     Add(Add),
 
-    /// Remove the completion cache
+    /// Remove cached completion scripts, or only the stale ones
     Clean(Clean),
 
     /// Print the JSON Schema for the config or a registry item

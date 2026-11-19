@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Cached scripts carry a sidecar, `clean --stale` removes only unreachable
+# scripts, `clean <tool>` scopes the removal, and install prunes quietly.
+
+mkdir -p bin
+cat >bin/fake <<'SH'
+#!/bin/sh
+printf '#compdef fake\n_fake() { compadd one; }\n'
+SH
+chmod +x bin/fake
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+"example/fake" = { aliases = ["fk"] }
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+
+export PATH="$PWD/bin:$PATH"
+"$SHCOMP_BIN" install --prewarm >/dev/null
+dir="$SHCOMP_CACHE_DIR/scripts/zsh/fake"
+script=$(find "$dir" -name '*.zsh' -print -quit)
+[[ -n $script ]] || fail "install --prewarm wrote no script"
+assert_exists "${script%.zsh}.json"
+assert_file_contains "${script%.zsh}.json" '"command": "fake"'
+
+# A script with no sidecar was written by an older shcomp.
+printf '#compdef fake\n' >"$dir/0123.zsh"
+dry=$("$SHCOMP_BIN" clean --stale -n)
+assert_contains_text "$dry" "would remove $dir/0123.zsh (no metadata"
+assert_not_contains_text "$dry" "$script"
+assert_contains_text "$dry" "would remove 1 script(s)"
+assert_exists "$dir/0123.zsh"
+
+out=$("$SHCOMP_BIN" clean --stale)
+assert_contains_text "$out" "removed 1 script(s)"
+assert_not_exists "$dir/0123.zsh"
+assert_exists "$script"
+
+# An alias names the same tool; another shell matches nothing.
+out=$("$SHCOMP_BIN" clean fk --shell fish -n)
+assert_contains_text "$out" "would remove 0 script(s)"
+out=$("$SHCOMP_BIN" clean fk -n)
+assert_contains_text "$out" "would remove $script"
+
+# The binary changing supersedes the script; install prunes it quietly.
+printf '# a new build\n' >>bin/fake
+out=$("$SHCOMP_BIN" install --prewarm)
+assert_not_contains_text "$out" "$script"
+assert_not_exists "$script"
+assert_not_exists "${script%.zsh}.json"
+count=$(find "$dir" -name '*.zsh' | wc -l)
+[[ $count -eq 1 ]] || fail "expected one fresh script, found $count"
+
+out=$("$SHCOMP_BIN" clean -n)
+assert_contains_text "$out" "would remove $SHCOMP_CACHE_DIR"
+"$SHCOMP_BIN" clean >/dev/null
+assert_not_exists "$SHCOMP_CACHE_DIR"
+
+ok "clean and prune"
