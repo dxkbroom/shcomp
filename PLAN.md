@@ -359,11 +359,13 @@ policy (#16), and additional hosts (#17).
   and registry items.
 - The public README contains no personal paths, hosts, or dotfile names.
 
-## v0.1.0 plan
+## v0.0.2 plan
 
-Status: agreed, not yet implemented.
+Status: implemented, pending release. All 11 layers have merged into `main`
+(#36 through #46), with the perf fixture fix in #48; the release PR has not
+been opened yet.
 
-v0.1.0 is about discoverability and operation. The broker model, the
+v0.0.2 is about discoverability and operation. The broker model, the
 registry/config split, PATH as the version source, and the no-network-on-Tab
 rule all stay. What changes is the surface around them: shcomp stops being a
 tool you have to already know how to use, and it stops yielding commands to
@@ -371,16 +373,16 @@ mise.
 
 ### Pre-v1 policy
 
-0.1.0 is the release that settles the CLI, and it is allowed to break v0.0.1
+0.0.2 is the release that settles the CLI, and it is allowed to break v0.0.1
 because shcomp is pre-v1. `README.md` carries the same notice tak uses: the
 CLI, configuration, storage format, and behavior are not finalized, and
 breaking changes may land between releases, including ones that require
 existing configuration or recorded data to be updated. `CHANGELOG.md` records
-the breaks under `0.1.0`.
+the breaks under `0.0.2`.
 
-### Breaking changes in 0.1.0
+### Breaking changes in 0.0.2
 
-| Surface | v0.0.1 | 0.1.0 |
+| Surface | v0.0.1 | 0.0.2 |
 | --- | --- | --- |
 | `ls --json` | flat `cached` / `mise_owned` booleans | `cache { state, script, key }`, `owner` |
 | `completion <shell> --install` | implemented | removed; `shcomp install` owns shcomp's own entry |
@@ -398,7 +400,7 @@ Each layer is green on its own and reviewable alone. The stack is bottom-up.
 1. `chore(perf)` — `tak.toml`, hermetic fixtures, `perf` tasks, record/compare
    workflows. No product change. The first baseline is recorded by the record
    job after this layer merges, never from a developer machine.
-2. `docs(pre-v1)` — the notice, the breaking-change table, and the `0.1.0`
+2. `docs(pre-v1)` — the notice, the breaking-change table, and the `0.0.2`
    changelog heading.
 3. `refactor(cli)` — `src/cli.rs` with one module per command under
    `src/cli/`, following the mise layout. Behavior unchanged.
@@ -478,11 +480,11 @@ Each layer is green on its own and reviewable alone. The stack is bottom-up.
   function before `_arguments` runs.
 - Filed: shcomp #35 — the diagnosis, the shim guard, the probe guard, and the
   upstream link.
-- To file: shcomp — fish zero-fork experiment: source the vendor script
+- Filed: shcomp #49 — fish zero-fork experiment: source the vendor script
   in-process, guarded by an e2e test that proves no helper leaks into the
   session.
 
-### Acceptance for v0.1.0
+### Acceptance for v0.0.2
 
 - `shcomp add gh` on a clean machine writes the selection, writes both shims,
   prints both loading lines, and `shcomp search gh` finds the same tool.
