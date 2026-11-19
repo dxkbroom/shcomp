@@ -39,21 +39,43 @@ pub fn script_cache_path(root: &Path, shell: &str, command: &str, key: &str) -> 
 }
 
 pub fn key_for(bin: &Path, source: &Source, shell: &str) -> Result<String> {
-    let real = source::real_path(bin);
-    let metadata =
-        std::fs::metadata(&real).wrap_err_with(|| format!("cannot stat `{}`", real.display()))?;
-    let modified = metadata
-        .modified()
-        .unwrap_or(SystemTime::UNIX_EPOCH)
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    let source = serde_json::to_string(source).wrap_err("cannot describe the source")?;
+    key_with(&BinStamp::of(bin)?, source, shell)
+}
 
+/// The parts of a binary the cache key depends on (ADR-0002), read once so a
+/// caller keying several shells for one binary stats it once.
+#[derive(Debug, Clone)]
+pub struct BinStamp {
+    real: PathBuf,
+    modified: u128,
+    len: u64,
+}
+
+impl BinStamp {
+    pub fn of(bin: &Path) -> Result<Self> {
+        let real = source::real_path(bin);
+        let metadata = std::fs::metadata(&real)
+            .wrap_err_with(|| format!("cannot stat `{}`", real.display()))?;
+        let modified = metadata
+            .modified()
+            .unwrap_or(SystemTime::UNIX_EPOCH)
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        Ok(Self {
+            real,
+            modified,
+            len: metadata.len(),
+        })
+    }
+}
+
+pub fn key_with(stamp: &BinStamp, source: &Source, shell: &str) -> Result<String> {
+    let source = serde_json::to_string(source).wrap_err("cannot describe the source")?;
     let mut hasher = Sha256::new();
-    hasher.update(real.to_string_lossy().as_bytes());
-    hasher.update(modified.to_le_bytes());
-    hasher.update(metadata.len().to_le_bytes());
+    hasher.update(stamp.real.to_string_lossy().as_bytes());
+    hasher.update(stamp.modified.to_le_bytes());
+    hasher.update(stamp.len.to_le_bytes());
     hasher.update(source.as_bytes());
     hasher.update(shell.as_bytes());
     hasher.update(env!("CARGO_PKG_VERSION").as_bytes());

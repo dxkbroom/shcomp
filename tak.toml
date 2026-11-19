@@ -30,7 +30,10 @@
 #   the tracing dependency graph enlarging what the dynamic linker resolves
 #   before `main` runs. #43 carries a `Tak-Accept` trailer for it as well.
 # - `ls` resolves the shipped registry, reads the fixture config, and stats each
-#   selected command's cache entry: the read-only path users hit most.
+#   selected command's cache entry: the read-only path users hit most. v0.0.3's
+#   `feat(ls)` layer made the `Cache` column cover zsh and fish, so a tool with a
+#   fish source is keyed twice; that cost about 2% even with one stat shared
+#   per binary, and the layer carries a `Tak-Accept: ls` trailer for it.
 # - `load` is the shim's cold dispatch — the one command a Tab actually forks.
 #   Its `setup` prewarms the cache so the measurement is the resolve-and-hit
 #   path, not the generator run.

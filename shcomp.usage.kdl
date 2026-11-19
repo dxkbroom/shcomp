@@ -39,8 +39,10 @@ cmd load help="Print the cached script path for one command and executable" hide
     flag "-h --help" help="Print help" action=help builtin=#true
 }
 cmd complete-word help="Probe completion candidates through the target shell" {
-    flag --shell help="Target shell" default=zsh {
-        arg <SHELL>
+    flag --shell help="Target shell; defaults to `$SHELL` when that is zsh or fish, otherwise zsh" {
+        arg <SHELL> {
+            choices zsh fish
+        }
     }
     flag --cword help="Index of the word being completed; defaults to the last word" {
         arg <CWORD>
@@ -61,6 +63,11 @@ cmd ls help="List selected tools and their completion sources" {
     flag --all help="Include disabled selections"
     flag --no-header help="Do not print the table header" {
         alias --no-headers hide=#true
+    }
+    flag "-s --shell" help="Describe one shell: its source and cache state, and only tools that complete in it" {
+        arg <SHELL> {
+            choices zsh fish
+        }
     }
     flag "-h --help" help="Print help" action=help builtin=#true
 }
