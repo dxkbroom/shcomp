@@ -18,9 +18,14 @@ pub struct Install {
     #[usage(long)]
     pub offline: bool,
 
-    /// Generate scripts for the active versions now
+    /// Generate scripts for the versions on PATH even when `[settings].prewarm`
+    /// is false
     #[usage(long)]
     pub prewarm: bool,
+
+    /// Do not generate scripts now; the first Tab generates them
+    #[usage(long)]
+    pub no_prewarm: bool,
 
     /// Print what would change without changing it
     #[usage(long, short = 'n')]
@@ -41,7 +46,12 @@ impl Install {
         let registry = Registry::load(&config)?;
         let shells = shells(&config, &self.shell)?;
         let fetch = !self.no_fetch && !self.offline && !self.dry_run;
-        let notes = crate::cache::prefetch(&config, &registry, self.prewarm, fetch)?;
+        let prewarm = (!self.dry_run && prewarm_enabled(&config, self.prewarm, self.no_prewarm))
+            .then_some(crate::cache::Prewarm {
+                shells: &shells,
+                only: None,
+            });
+        let notes = crate::cache::prefetch(&config, &registry, prewarm, fetch)?;
         let reports = reconcile(&config, &registry, &shells, self.dry_run)?;
         // Scripts no load can reach go quietly; `-v` names them.
         let pruned = if self.dry_run {
@@ -159,6 +169,15 @@ impl Install {
         }
         Ok(())
     }
+}
+
+/// Whether to prewarm: `--no-prewarm` wins, then `--prewarm`, then the
+/// setting, which defaults to true (ADR-0010).
+pub fn prewarm_enabled(config: &Config, prewarm: bool, no_prewarm: bool) -> bool {
+    if no_prewarm {
+        return false;
+    }
+    prewarm || config.settings.prewarm
 }
 
 /// The shells to reconcile: the flag if given, the setting otherwise.

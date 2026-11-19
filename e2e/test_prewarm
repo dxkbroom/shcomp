@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# install prewarms by default, add prewarms only what it added, and both opt
+# out with --no-prewarm or `[settings].prewarm = false`.
+
+mkdir -p bin
+for name in fake other; do
+  cat >"bin/$name" <<SH
+#!/bin/sh
+printf '#compdef $name\n_$name() { compadd one; }\n'
+SH
+done
+cat >bin/broken <<'SH'
+#!/bin/sh
+echo "broken: nope" >&2
+exit 3
+SH
+chmod +x bin/fake bin/other bin/broken
+export PATH="$PWD/bin:$PATH"
+
+registry='
+[[registry]]
+repo = "example/fake"
+main = "fake"
+[[registry.tools]]
+name = "fake"
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+
+[[registry]]
+repo = "example/other"
+main = "other"
+[[registry.tools]]
+name = "other"
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+
+[[registry]]
+repo = "example/broken"
+main = "broken"
+[[registry.tools]]
+name = "broken"
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+'
+
+scripts() {
+  find "$SHCOMP_CACHE_DIR/scripts/zsh/$1" -name '*.zsh' 2>/dev/null | wc -l
+}
+
+printf '[tools]\nfake = true\nbroken = true\n%s' "$registry" >"$SHCOMP_CONFIG"
+
+out=$("$SHCOMP_BIN" install --no-prewarm)
+assert_not_contains_text "$out" "prewarmed"
+[[ $(scripts fake) -eq 0 ]] || fail "--no-prewarm generated a script"
+ok "--no-prewarm generates nothing"
+
+out=$("$SHCOMP_BIN" install)
+# fake for zsh, and shcomp's own entry for both shells.
+assert_contains_text "$out" "prewarmed 3 script(s)"
+assert_contains_text "$out" "prewarm failed for broken zsh"
+[[ $(scripts fake) -eq 1 ]] || fail "install did not prewarm fake"
+ok "install prewarms by default, and a failing generator does not fail it"
+
+# The first Tab is warm: ls says so.
+ls_out=$("$SHCOMP_BIN" ls)
+assert_contains_text "$ls_out" "warm"
+
+"$SHCOMP_BIN" clean >/dev/null
+printf '[tools]\nfake = true\n[settings]\nprewarm = false\n%s' "$registry" >"$SHCOMP_CONFIG"
+"$SHCOMP_BIN" install >/dev/null
+[[ $(scripts fake) -eq 0 ]] || fail "prewarm = false still generated"
+"$SHCOMP_BIN" install --prewarm >/dev/null
+[[ $(scripts fake) -eq 1 ]] || fail "--prewarm did not override the setting"
+ok "the setting opts out and --prewarm opts back in"
+
+# add prewarms what it added, and nothing else.
+"$SHCOMP_BIN" clean >/dev/null
+printf '[tools]\nfake = true\n%s' "$registry" >"$SHCOMP_CONFIG"
+out=$("$SHCOMP_BIN" add other)
+assert_contains_text "$out" "prewarmed 1 script(s)"
+[[ $(scripts other) -eq 1 ]] || fail "add did not prewarm other"
+[[ $(scripts fake) -eq 0 ]] || fail "add prewarmed a tool it did not add"
+"$SHCOMP_BIN" clean >/dev/null
+"$SHCOMP_BIN" add other --no-prewarm >/dev/null
+[[ $(scripts other) -eq 0 ]] || fail "add --no-prewarm generated a script"
+ok "add prewarms only its tool"
+
+# A selection limited to another shell is not prewarmed for zsh.
+printf '[tools]\nfake = { shells = ["fish"] }\n%s' "$registry" >"$SHCOMP_CONFIG"
+"$SHCOMP_BIN" clean >/dev/null
+"$SHCOMP_BIN" install >/dev/null
+[[ $(scripts fake) -eq 0 ]] || fail "prewarmed a shell the selection excludes"
+
+ok "prewarm"

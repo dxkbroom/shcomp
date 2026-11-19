@@ -16,6 +16,7 @@
       "default": {
         "timeout": "5s",
         "fetch": true,
+        "prewarm": true,
         "cache_dir": null,
         "data_dir": null,
         "env": {},
@@ -89,6 +90,11 @@
         },
         "fetch": {
           "description": "Whether `install` may fetch `url` sources.",
+          "type": "boolean",
+          "default": true
+        },
+        "prewarm": {
+          "description": "Whether `install` and `add` generate each selected tool's script for the\nversion on `PATH`, so the first Tab is warm. `--no-prewarm` overrides.",
           "type": "boolean",
           "default": true
         },

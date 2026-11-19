@@ -68,7 +68,10 @@ Do not fetch URL sources
 Fail instead of fetching an uncached URL source
 .TP
 \fB\-\-prewarm\fR
-Generate scripts for the active versions now
+Generate scripts for the versions on PATH even when `[settings].prewarm` is false
+.TP
+\fB\-\-no\-prewarm\fR
+Do not generate scripts now; the first Tab generates them
 .TP
 \fB\-n, \-\-dry\-run\fR
 Print what would change without changing it
@@ -220,6 +223,9 @@ Write the selection but install nothing
 .TP
 \fB\-f, \-\-force\fR
 Replace the selection's aliases instead of adding to them
+.TP
+\fB\-\-no\-prewarm\fR
+Do not generate the script now; the first Tab generates it
 .TP
 \fB\-h, \-\-help\fR
 Print help

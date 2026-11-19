@@ -89,6 +89,11 @@ pub struct Settings {
     #[serde(default = "Settings::default_fetch")]
     pub fetch: bool,
 
+    /// Whether `install` and `add` generate each selected tool's script for the
+    /// version on `PATH`, so the first Tab is warm. `--no-prewarm` overrides.
+    #[serde(default = "Settings::default_prewarm")]
+    pub prewarm: bool,
+
     /// Override the cache directory.
     #[serde(default)]
     pub cache_dir: Option<PathBuf>,
@@ -125,6 +130,7 @@ impl Default for Settings {
         Self {
             timeout: Self::default_timeout(),
             fetch: Self::default_fetch(),
+            prewarm: Self::default_prewarm(),
             cache_dir: None,
             data_dir: None,
             env: BTreeMap::new(),
@@ -137,6 +143,10 @@ impl Default for Settings {
 }
 
 impl Settings {
+    fn default_prewarm() -> bool {
+        true
+    }
+
     fn default_timeout() -> String {
         "5s".to_string()
     }
