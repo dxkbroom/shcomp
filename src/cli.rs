@@ -38,7 +38,7 @@ pub use usage::Usage;
 #[usage(
     name = "shcomp",
     bin = "shcomp",
-    version = "0.0.1",
+    version = "0.0.2",
     about = "Manage shell completions that follow the active tool version",
     arg_required_else_help = true,
     completion = true

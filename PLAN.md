@@ -361,9 +361,8 @@ policy (#16), and additional hosts (#17).
 
 ## v0.0.2 plan
 
-Status: implemented, pending release. All 11 layers have merged into `main`
-(#36 through #46), with the perf fixture fix in #48; the release PR has not
-been opened yet.
+Status: implemented in v0.0.2. All 11 layers merged into `main` (#36
+through #46), with the perf fixture fix in #48.
 
 v0.0.2 is about discoverability and operation. The broker model, the
 registry/config split, PATH as the version source, and the no-network-on-Tab
