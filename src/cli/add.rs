@@ -287,6 +287,7 @@ impl Add {
         }
         let instructions: Vec<&String> = reports
             .iter()
+            .filter(|report| !crate::shell::probe::loading_line_in_effect(&would_be, report.shell))
             .filter_map(|report| report.loading.as_ref())
             .collect();
         if !instructions.is_empty() {

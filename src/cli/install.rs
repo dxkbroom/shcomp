@@ -86,8 +86,11 @@ impl Install {
             }
         }
 
+        // The loading line is printed only for a shell shcomp has no evidence
+        // of: a shim that loaded there, or a probe that found the directory.
         let instructions: Vec<String> = reports
             .iter()
+            .filter(|report| !crate::shell::probe::loading_line_in_effect(config, report.shell))
             .filter_map(|report| report.loading.clone())
             .collect();
 
