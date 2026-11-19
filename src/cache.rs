@@ -160,20 +160,44 @@ fn wants_version(source: &Source) -> Result<bool> {
     Ok(serde_json::to_string(source)?.contains("{{ version"))
 }
 
-/// Fetch URL sources for the active versions and, when `prewarm`, generate the
-/// script for each active command.
+/// Which scripts `prefetch` generates ahead of the first Tab (ADR-0010).
+#[derive(Debug, Clone, Copy)]
+pub struct Prewarm<'a> {
+    /// The shells being installed for.
+    pub shells: &'a [String],
+    /// Only these commands; every selected command when `None`.
+    pub only: Option<&'a [String]>,
+}
+
+/// Fetch URL sources for the active versions and, when `prewarm` is given,
+/// generate the script for each selected command in each of its shells.
+///
+/// A generator failure is a note, not an error: the shim is still written and
+/// the cold path still generates at Tab time.
 pub fn prefetch(
     config: &Config,
     registry: &Registry,
-    prewarm: bool,
+    prewarm: Option<Prewarm<'_>>,
     fetch: bool,
 ) -> Result<Vec<String>> {
     let mut messages = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
+    let mut generated = 0;
     let root = cache_root(config)?;
     for tool in registry.selected(config)? {
         let command = tool.resolved.tool.name.clone();
         if !seen.insert(command.clone()) {
+            continue;
+        }
+        let wanted =
+            prewarm.is_some_and(|prewarm| prewarm.only.is_none_or(|only| only.contains(&command)));
+        let has_url = tool.resolved.tool.completed_shells().iter().any(|shell| {
+            tool.resolved
+                .tool
+                .source(shell)
+                .is_some_and(|source| source.url.is_some())
+        });
+        if !wanted && !has_url {
             continue;
         }
         let Ok(bin) = source::resolve_binary(&command) else {
@@ -209,13 +233,28 @@ pub fn prefetch(
                     Err(error) => messages.push(format!("skipped {command} {shell}: {error}")),
                 }
             }
-            if prewarm {
-                match load_or_generate(config, registry, &command, &shell, &bin) {
-                    Ok(_) => messages.push(format!("generated {command} {shell}")),
-                    Err(error) => messages.push(format!("skipped {command} {shell}: {error}")),
-                }
+            let Some(prewarm) = prewarm.filter(|_| wanted) else {
+                continue;
+            };
+            let shell_wanted = prewarm.shells.contains(&shell)
+                && tool
+                    .shells
+                    .as_ref()
+                    .is_none_or(|shells| shells.contains(&shell));
+            if !shell_wanted {
+                continue;
+            }
+            match load_or_generate(config, registry, &command, &shell, &bin) {
+                Ok(_) => generated += 1,
+                Err(error) => messages.push(format!(
+                    "prewarm failed for {command} {shell}: {}",
+                    format!("{error:#}").lines().next().unwrap_or_default()
+                )),
             }
         }
+    }
+    if prewarm.is_some() {
+        messages.push(format!("prewarmed {generated} script(s)"));
     }
     Ok(messages)
 }

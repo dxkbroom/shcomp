@@ -29,6 +29,13 @@ A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
 
 ### Changed
 
+- `install` prewarms by default: it generates each selected tool's script for
+  the version on `PATH`, so the first Tab is warm (ADR-0010). `add` prewarms
+  the tools it added. `--no-prewarm` and `[settings].prewarm = false` opt out;
+  `install --prewarm` overrides the setting. A generator that fails is a note
+  in the summary, not an install failure, and the summary prints one
+  `prewarmed N script(s)` line instead of one line per script.
+
 - `doctor` reports shcomp's own mise packslip overlap as `ok`: shcomp installed
   through packslip always has a mise stub, and its own shim wins. Every other
   overlap is still a warning.

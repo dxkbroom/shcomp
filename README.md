@@ -98,6 +98,11 @@ fpath=("$XDG_DATA_HOME/shcomp/zsh/site-functions" $fpath)
 
 Then restart the shell, or run `compinit` again.
 
+`install` also generates each selected tool's script for the version on your
+`PATH`, so the first Tab is already warm; a generator that fails is reported
+and left for the first Tab to retry. `--no-prewarm`, or `prewarm = false`
+under `[settings]`, skips that step. `add` prewarms only the tools it added.
+
 For fish, the same install writes
 `${XDG_DATA_HOME}/shcomp/fish/completions`, and the one line goes in
 `~/.config/fish/config.fish`:
@@ -253,7 +258,7 @@ the hash it fetched for a version-pinned URL.
 
 | Command | Purpose |
 | --- | --- |
-| `shcomp install [-n] [-s <shell>] [--json]` | Reconcile zsh/fish shims (including shcomp's own) and fetch URL sources. |
+| `shcomp install [-n] [-s <shell>] [--no-prewarm] [--json]` | Reconcile zsh/fish shims (including shcomp's own), fetch URL sources, prewarm scripts, and prune stale ones. |
 | `shcomp uninstall` | Remove shcomp-owned shims. |
 | `shcomp doctor` | Sectioned checks for zsh, fish, mise, the cache, and recent loads; `--check` runs each generator, `--json` for machines, exits 1 on an error. |
 | `shcomp ls [--all] [--no-header] [--json]` | Selected tools, sources, cache state, and owner. |

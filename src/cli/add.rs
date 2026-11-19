@@ -35,6 +35,10 @@ pub struct Add {
     /// Replace the selection's aliases instead of adding to them
     #[usage(long, short)]
     pub force: bool,
+
+    /// Do not generate the script now; the first Tab generates it
+    #[usage(long)]
+    pub no_prewarm: bool,
 }
 
 /// The completer for `add <REFERENCE>`: every tool the registry can add.
@@ -152,8 +156,14 @@ impl Add {
         }
 
         let registry = Registry::load(&would_be)?;
-        let notes = crate::cache::prefetch(&would_be, &registry, false, true)?;
         let shells = crate::cli::install::shells(&would_be, &[])?;
+        let only = [command.clone()];
+        let prewarm = crate::cli::install::prewarm_enabled(&would_be, false, self.no_prewarm)
+            .then_some(crate::cache::Prewarm {
+                shells: &shells,
+                only: Some(&only),
+            });
+        let notes = crate::cache::prefetch(&would_be, &registry, prewarm, true)?;
         let reports = crate::cli::install::reconcile(&would_be, &registry, &shells, false)?;
         for report in &reports {
             if let Some(row) = report.row(&command) {
