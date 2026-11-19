@@ -501,3 +501,123 @@ Each layer is green on its own and reviewable alone. The stack is bottom-up.
 - `shcomp doctor --check` attributes the gradle failure to the vendor script.
 - `mise run perf` compares against the recorded baseline without network
   access, and a legitimate regression fails the PR check.
+
+## v0.0.3 plan
+
+Status: planned. Layers land as a stack; this section is updated as they
+merge.
+
+v0.0.3 is a quality-of-life release for the two shells shcomp already
+supports. It adds no registry items and no shells. The broker model, the
+config/registry split, PATH as the version source, the fork-free zsh warm path,
+and the no-network-on-Tab rule all stay. What changes is that shcomp explains
+itself (`which`, a fish-aware `doctor`, a `doctor --check` that asks the real
+shell), cleans up after itself (cache metadata, `clean --stale`), arrives warm
+(prewarm by default), and lets a user describe a tool the registry does not
+know without writing TOML by hand (`add --run`, `edit`).
+
+### Layers
+
+Each layer is green on its own and reviewable alone. The stack is bottom-up.
+
+1. `docs(v0.0.3)` — this plan, ADR-0010 through ADR-0012, and the
+   `Unreleased (0.0.3)` changelog heading.
+2. `feat(cache)` — every cached script gets a sidecar `<key>.json` naming the
+   command, shell, binary, source kind, and creation time. `clean --stale`
+   removes scripts whose binary is gone, whose key no longer matches the binary
+   and source, or which carry no sidecar; `clean <tool>...` and `clean --shell`
+   scope it, and `-n/--dry-run` lists without removing. `install` prunes stale
+   scripts quietly.
+3. `feat(load)` — `shcomp load` records the outcome of a cold load per shell and
+   command: the key, the time, and `ok` or the error with the first line the
+   generator wrote to stderr. `doctor` reports recent failures and a shell whose
+   shims are installed but have never loaded.
+4. `feat(doctor)` — fish parity: a `fish` section with missing, foreign, and
+   stale shim checks, and the fish directory in `dirs`. The implicit shcomp
+   entry's own mise packslip overlap becomes an `ok` line.
+5. `feat(config)` — duplicate selections: two config keys that resolve to the
+   same registry tool are a `doctor` warning naming both keys, and `add` says
+   the tool is already selected instead of writing a second key.
+6. `feat(install)` — `install` prewarms by default, `add` prewarms the tools it
+   added, `--no-prewarm` and `[settings].prewarm = false` opt out.
+7. `feat(ls)` — the `Cache` column shows every managed shell (`warm/cold`),
+   `ls --shell` narrows to one shell, `--json` gains a `caches` object, and
+   `complete-word` defaults `--shell` to `$SHELL` when that is zsh or fish.
+8. `feat(add)` — inline sources: `--run`, `--run-zsh`, `--run-fish`,
+   `--url --shell`, and `--usage` describe a tool the registry does not have.
+   `add` checks the binary is on `PATH`, runs the command once per shell, shows
+   the registry item, and only then writes it. `add` accepts several
+   references.
+9. `feat(edit)` — `shcomp edit` opens the config in `$VISUAL`/`$EDITOR`,
+   validates the result, shows a diff, writes it, and reconciles.
+10. `feat(which)` — `shcomp which <cmd>` explains one command: selection,
+   registry layer, binary, per-shell source, cache state, key, shim, and any
+   mise stub. It never runs the vendor.
+11. `feat(doctor)` — `doctor --check` starts the user's interactive zsh and fish
+   with a timeout and reads `fpath` / `fish_complete_path`: the loading line,
+   a shadowing `_cmd` or `cmd.fish` earlier on the path, and a stale static
+   `_shcomp` left by v0.0.1. `install` and `add` print the loading line only
+   when shcomp has no evidence that the shell already loads from its directory.
+
+### Decisions
+
+- **Duplicates compare resolved tools.** `tv` and
+  `alexpasmantier/television/tv` are the same selection because they resolve to
+  the same registry tool, not because the strings match. `doctor` warns
+  (`tv is selected twice (tv, alexpasmantier/television/tv)`); it is not an
+  error because the shim is the same either way.
+- **The self overlap is expected.** shcomp installed through mise's packslip
+  backend always has a mise stub; shcomp's own shim wins on `fpath`, so the line
+  is `ok`. Every other mise overlap still warns, as `AGENTS.md` requires.
+- **Prewarm by default** (ADR-0010). `install` and `add` already run with the
+  network allowed and the user waiting; doing the generation there moves the
+  only slow Tab out of the interactive path.
+- **Cache metadata and load state are files beside the cache** (ADR-0011).
+  They are written on the cold path only. The zsh warm path stays fork-free
+  and write-free; the fish warm path forks no shcomp.
+- **`doctor --check` asks the real shell** (ADR-0012). Reading the user's
+  dotfiles cannot answer whether the loading line runs; starting the shell can,
+  and `--check` already means "run things".
+- **The setup hint needs evidence to stay quiet.** `install` and `add` skip the
+  loading line for a shell when a shim has loaded through `shcomp load` in that
+  shell, or when the last `doctor --check` found the directory on its path.
+  Otherwise they print it, as before.
+- **Inline sources use `{shell}`.** `add leaf --run 'leaf --auto-complete
+  {shell}:dump'` writes `run = ["leaf", "--auto-complete", "{{ shell }}:dump"]`
+  into a `[[registry]]` item in the config. The flag value is split like a shell
+  word list; `{shell}` and `{bin}` are the two placeholders.
+- **`add` accepts several references**; inline-source flags and `--alias` need
+  exactly one.
+- **`edit` never writes an invalid config.** A config that fails to parse,
+  validate, or resolve is reported and left out; under a terminal the user is
+  offered another edit.
+- **`which` is offline and side-effect free.** It reads the registry, the
+  config, the cache, and the shim directories. The only process it starts is
+  `mise completion`, to report a stub.
+
+### New ADRs
+
+- ADR-0010: `install` prewarms by default.
+- ADR-0011: cache scripts carry their origin; loads record their outcome on
+  the cold path.
+- ADR-0012: `doctor --check` asks the user's real shell.
+
+### Acceptance for v0.0.3
+
+- `shcomp doctor` reports a missing fish shim as an error and a fish directory
+  under `dirs`.
+- `shcomp doctor` on a config selecting `tv` and `alexpasmantier/television/tv`
+  warns once, naming both keys; `shcomp add alexpasmantier/television/tv` with
+  `tv` selected writes nothing.
+- `shcomp install` leaves every selected tool `warm` in `shcomp ls`.
+- `shcomp clean --stale -n` lists a script whose binary was removed, and
+  `clean --stale` removes it.
+- A generator that fails leaves the prompt silent and shows up in `doctor`.
+- `shcomp which gh` names the registry layer, the binary, and the zsh and fish
+  cache state without running `gh`.
+- `shcomp add leaf --run 'leaf --auto-complete {shell}:dump' --dry-run` prints
+  the item and writes nothing; without `--dry-run` the config gains the item
+  and `leaf` completes.
+- `shcomp doctor --check` reports the fish loading line missing on a machine
+  whose `config.fish` does not set it.
+- `mise run perf` shows no regression past the gate.
