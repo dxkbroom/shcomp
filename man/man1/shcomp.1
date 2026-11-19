@@ -109,10 +109,7 @@ Probe completion candidates through the target shell
 .PP
 .TP
 \fB\-\-shell\fR \fI<SHELL>\fR
-Target shell
-.RS
-\fIDefault: \fRzsh
-.RE
+Target shell; defaults to `$SHELL` when that is zsh or fish, otherwise zsh
 .TP
 \fB\-\-cword\fR \fI<CWORD>\fR
 Index of the word being completed; defaults to the last word
@@ -162,6 +159,9 @@ Include disabled selections
 .TP
 \fB\-\-no\-header\fR
 Do not print the table header
+.TP
+\fB\-s, \-\-shell\fR \fI<SHELL>\fR
+Describe one shell: its source and cache state, and only tools that complete in it
 .TP
 \fB\-h, \-\-help\fR
 Print help

@@ -130,8 +130,12 @@ share a name, it inserts the full reference instead.
 `shcomp ls` answers the questions you actually have about an entry: what it is
 called (with its aliases), which workspace it came from, how its completion is
 produced, whether the next Tab will be warm or cold, who owns it when mise also
-provides one, and what the registry says it is. `--all` adds selections you have
-disabled, and `--json` carries the same fields for scripts.
+provides one, and what the registry says it is. The `Cache` column covers every
+shell you install for, as `warm/cold` (zsh, then fish), with `-` where a tool
+has no source for that shell. `ls --shell fish` narrows the table to one shell:
+its source, its cache state, and only the tools that complete there. `--all`
+adds selections you have disabled, and `--json` carries the same fields for
+scripts, with a `caches` object holding each shell's entry.
 
 Every cached script has a sidecar `<key>.json` beside it that names the
 command, shell, and binary it came from. `shcomp clean --stale` uses it to
@@ -261,7 +265,7 @@ the hash it fetched for a version-pinned URL.
 | `shcomp install [-n] [-s <shell>] [--no-prewarm] [--json]` | Reconcile zsh/fish shims (including shcomp's own), fetch URL sources, prewarm scripts, and prune stale ones. |
 | `shcomp uninstall` | Remove shcomp-owned shims. |
 | `shcomp doctor` | Sectioned checks for zsh, fish, mise, the cache, and recent loads; `--check` runs each generator, `--json` for machines, exits 1 on an error. |
-| `shcomp ls [--all] [--no-header] [--json]` | Selected tools, sources, cache state, and owner. |
+| `shcomp ls [-s <shell>] [--all] [--no-header] [--json]` | Selected tools, sources, per-shell cache state, and owner. |
 | `shcomp search [name]` | Find a reference to add; `-i` picks from a menu. |
 | `shcomp add [-n] [--no-install] <reference>` | Add a selection and reconcile its shim. |
 | `shcomp clean [--stale] [-n] [-s <shell>] [tool...]` | Remove cached scripts: all of them, one tool's or shell's, or only the stale ones. |
@@ -290,7 +294,8 @@ mise x gh@2.103.3 -- shcomp complete-word gh@2.103.3 gh ""
 ```
 
 `complete-word` takes the words after the command, and `--cword` when the
-cursor is not on the last word:
+cursor is not on the last word. `--shell` defaults to your `$SHELL` when that is
+zsh or fish, and to zsh otherwise:
 
 ```sh
 shcomp complete-word gh gh co

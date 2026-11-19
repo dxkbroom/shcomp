@@ -27,7 +27,16 @@ A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
   resolved tools too: adding a tool that is already selected under another key
   writes nothing, and new `--alias` values go to the existing key.
 
+- `ls --shell <zsh|fish>` describes one shell: its source, its cache state,
+  and only the tools that complete in it. `ls --json` gains a `caches` object
+  with each shell's `{ state, script, key }`; `cache` stays.
+
 ### Changed
+
+- `ls`'s `Cache` column shows every installed shell (`warm/cold`, `-` for no
+  source) under a `Cache (zsh/fish)` header.
+- `complete-word --shell` defaults to `$SHELL` when that is zsh or fish, and to
+  zsh otherwise.
 
 - `install` prewarms by default: it generates each selected tool's script for
   the version on `PATH`, so the first Tab is warm (ADR-0010). `add` prewarms
