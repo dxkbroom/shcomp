@@ -457,6 +457,15 @@ impl ResolvedTool {
     pub fn repo_slug(&self) -> Option<String> {
         self.repo.as_ref().map(Repo::slug)
     }
+
+    /// What two references must share to name the same tool: the registry item
+    /// and the tool within it. `tv` and `alexpasmantier/television/tv` agree.
+    pub fn identity(&self) -> String {
+        match self.repo_slug() {
+            Some(slug) => format!("{slug}/{}", self.tool.name),
+            None => format!("tool:{}", self.tool.name),
+        }
+    }
 }
 
 type ItemWithSource = (RegistryItem, Option<PathBuf>);
@@ -717,6 +726,41 @@ impl Registry {
             .collect())
     }
 
+    /// Config keys that resolve to the same registry tool, grouped by tool
+    /// name in config order. A key that does not resolve is left to the
+    /// resolution error elsewhere.
+    pub fn duplicates(&self, config: &Config) -> Vec<(String, Vec<String>)> {
+        let mut groups: indexmap::IndexMap<String, (String, Vec<String>)> =
+            indexmap::IndexMap::new();
+        for reference in config.tools.keys() {
+            let Ok(resolved) = self.resolve_str(reference) else {
+                continue;
+            };
+            groups
+                .entry(resolved.identity())
+                .or_insert_with(|| (resolved.tool.name.clone(), Vec::new()))
+                .1
+                .push(reference.clone());
+        }
+        groups
+            .into_values()
+            .filter(|(_, references)| references.len() > 1)
+            .collect()
+    }
+
+    /// The config key that already selects the same tool as `resolved`.
+    pub fn selection_key(&self, config: &Config, resolved: &ResolvedTool) -> Option<String> {
+        let identity = resolved.identity();
+        config
+            .tools
+            .keys()
+            .find(|key| {
+                self.resolve_str(key)
+                    .is_ok_and(|other| other.identity() == identity)
+            })
+            .cloned()
+    }
+
     /// Every selection in the config, disabled ones included. `ls --all` and
     /// `ls --json` report from this list.
     pub fn selections(&self, config: &Config) -> Result<Vec<SelectedTool>> {
@@ -820,6 +864,44 @@ run = ["{{ bin }}", "completion", "-s", "{{ shell }}"]
             let resolved = registry.resolve_str(input).unwrap();
             assert_eq!(resolved.tool.name, "gh", "input: {input}");
         }
+    }
+
+    #[test]
+    fn duplicates_compare_resolved_tools() {
+        let mut config: Config = toml::from_str(
+            r#"
+[tools]
+gh = true
+"cli/cli" = true
+github = true
+"cli/cli/gh" = { aliases = ["g"] }
+"#,
+        )
+        .unwrap();
+        config.registry = vec![toml::from_str(CLI_CLI).unwrap()];
+        let registry = Registry::load(&config).unwrap();
+        assert_eq!(
+            registry.duplicates(&config),
+            vec![(
+                "gh".to_string(),
+                vec![
+                    "gh".to_string(),
+                    "cli/cli".to_string(),
+                    "github".to_string(),
+                    "cli/cli/gh".to_string()
+                ]
+            )]
+        );
+        let resolved = registry.resolve_str("https://github.com/cli/cli").unwrap();
+        assert_eq!(
+            registry.selection_key(&config, &resolved).as_deref(),
+            Some("gh")
+        );
+
+        config.tools.shift_remove("cli/cli");
+        config.tools.shift_remove("github");
+        config.tools.shift_remove("cli/cli/gh");
+        assert!(registry.duplicates(&config).is_empty());
     }
 
     #[test]

@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Two config keys for one registry tool are a doctor warning naming both, and
+# add says the tool is already selected instead of writing a second key.
+
+mkdir -p bin
+cat >bin/fake <<'SH'
+#!/bin/sh
+printf '#compdef fake\n_fake() { compadd one; }\n'
+SH
+chmod +x bin/fake
+export PATH="$PWD/bin:$PATH"
+
+registry='
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+'
+
+printf '[tools]\nfake = true\n"example/fake/fake" = true\n%s' "$registry" >"$SHCOMP_CONFIG"
+"$SHCOMP_BIN" install >/dev/null
+doctor=$("$SHCOMP_BIN" doctor)
+assert_contains_text "$doctor" "fake is selected twice (fake, example/fake/fake)"
+
+printf '[tools]\nfake = true\n%s' "$registry" >"$SHCOMP_CONFIG"
+doctor=$("$SHCOMP_BIN" doctor)
+assert_not_contains_text "$doctor" "selected twice"
+
+before=$(cat "$SHCOMP_CONFIG")
+out=$("$SHCOMP_BIN" add example/fake)
+assert_contains_text "$out" "example/fake (fake) is already selected as fake"
+[[ $(cat "$SHCOMP_CONFIG") == "$before" ]] || fail "add wrote a second key for the same tool"
+ok "add leaves the config alone"
+
+preview=$("$SHCOMP_BIN" add https://github.com/example/fake --dry-run)
+assert_contains_text "$preview" "is already selected as fake"
+
+# New aliases go to the existing key.
+out=$("$SHCOMP_BIN" add example/fake --alias fk)
+assert_contains_text "$out" "updated fake (fake)"
+assert_file_contains "$SHCOMP_CONFIG" 'fake = { aliases = ["fk"] }'
+assert_not_contains_text "$(cat "$SHCOMP_CONFIG")" '"example/fake" ='
+
+ok "duplicate selections"
