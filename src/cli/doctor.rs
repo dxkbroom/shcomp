@@ -94,6 +94,64 @@ fn findings(config: &Config, registry: &Registry, check: bool) -> Result<Vec<Fin
         format!("{} ({scripts} script(s))", cache.display()),
     ));
 
+    findings.extend(load_findings(config, registry)?);
+
+    Ok(findings)
+}
+
+/// What the cold loads recorded (ADR-0011): failures the prompt never showed,
+/// and shells whose shims have never loaded at all.
+fn load_findings(config: &Config, registry: &Registry) -> Result<Vec<Finding>> {
+    let selected: std::collections::BTreeSet<String> = registry
+        .selected(config)?
+        .iter()
+        .flat_map(|tool| {
+            std::iter::once(tool.resolved.tool.name.clone()).chain(tool.aliases.clone())
+        })
+        .collect();
+    let now = crate::cache::unix_now();
+    let mut findings = Vec::new();
+    for shell in &config.settings.shells {
+        let shims = match shell.as_str() {
+            "zsh" => crate::shell::zsh::uninstall(config, true)?.len(),
+            "fish" => crate::shell::fish::uninstall(config, true)?.len(),
+            _ => continue,
+        };
+        let records: Vec<_> = crate::state::records(config, shell)
+            .into_iter()
+            .filter(|record| selected.contains(&record.command))
+            .collect();
+        if records.is_empty() {
+            if shims > 0 {
+                findings.push(Finding::warn(
+                    "loads",
+                    format!(
+                        "{shell}: {shims} shim(s) installed but none has loaded yet; if you have pressed Tab since installing, the loading line is not in effect (`shcomp doctor --check`)"
+                    ),
+                ));
+            }
+            continue;
+        }
+        let failed: Vec<_> = records.iter().filter(|record| !record.ok).collect();
+        for record in &failed {
+            let mut message = format!(
+                "{} ({shell}): last load failed {}: {}",
+                record.command,
+                crate::state::ago(record.at, now),
+                record.error.as_deref().unwrap_or("unknown error")
+            );
+            if let Some(stderr) = &record.stderr {
+                message.push_str(&format!(" — {stderr}"));
+            }
+            findings.push(Finding::warn("loads", message));
+        }
+        if failed.is_empty() {
+            findings.push(Finding::ok(
+                "loads",
+                format!("{shell}: {} command(s) loaded, no failures", records.len()),
+            ));
+        }
+    }
     Ok(findings)
 }
 

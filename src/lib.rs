@@ -13,6 +13,7 @@ pub mod schema;
 pub mod search;
 pub mod shell;
 pub mod source;
+pub mod state;
 pub mod template;
 
 pub use eyre::Result;

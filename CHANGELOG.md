@@ -12,6 +12,11 @@ A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
   can reach, `clean <tool>...` and `clean -s <shell>` scope a removal, and
   `-n/--dry-run` lists without removing. `install` prunes stale scripts
   quietly (`install --json` reports `pruned`).
+- `shcomp load` records each cold load's outcome under the cache's `state/`
+  directory, rewriting it only when the outcome changes. `doctor` gained a
+  `loads` section: a generator that failed (with the first line it wrote to
+  stderr, which the prompt never shows) and a shell whose shims are installed
+  but have never loaded.
 
 ## v0.0.2
 
