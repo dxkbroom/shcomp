@@ -13,6 +13,7 @@ pub mod clean;
 pub mod complete_word;
 pub mod completion;
 pub mod doctor;
+pub mod edit;
 pub mod install;
 pub mod load;
 pub mod ls;
@@ -26,6 +27,7 @@ pub use clean::Clean;
 pub use complete_word::CompleteWord;
 pub use completion::Completion;
 pub use doctor::Doctor;
+pub use edit::Edit;
 pub use install::Install;
 pub use load::Load;
 pub use ls::Ls;
@@ -80,8 +82,11 @@ pub enum Commands {
     /// Search the registry for a tool to add
     Search(Search),
 
-    /// Add a tool selection to the config
+    /// Add tool selections to the config, or describe a new command
     Add(Add),
+
+    /// Edit the config in $VISUAL or $EDITOR, validated before it is written
+    Edit(Edit),
 
     /// Remove cached completion scripts, or only the stale ones
     Clean(Clean),
@@ -124,6 +129,7 @@ impl Commands {
             Self::Search(_) => "search",
             Self::Add(_) => "add",
             Self::Clean(_) => "clean",
+            Self::Edit(_) => "edit",
             Self::Schema(_) => "schema",
             Self::Usage(_) => "usage",
             Self::Completion(_) => "completion",
@@ -146,6 +152,7 @@ impl Commands {
             Self::Search(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Add(command) => command.run(),
             Self::Clean(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::Edit(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Schema(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Usage(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Completion(command) => command.run().map(|()| ExitCode::SUCCESS),

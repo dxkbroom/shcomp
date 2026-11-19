@@ -94,7 +94,7 @@ cmd search help="Search the registry for a tool to add" {
     arg "[NAME]" help="Name, workspace, or reference to search for"
     complete name run="shcomp __complete_word__ --candidates name --line={{ words | shell_join | shell_quote }}"
 }
-cmd add help="Add a tool selection to the config" {
+cmd add help="Add tool selections to the config, or describe a new command" {
     flag --alias help="Extra command name to register; repeat for several" var=#true {
         arg <ALIAS>
     }
@@ -129,6 +129,11 @@ cmd add help="Add a tool selection to the config" {
     flag "-h --help" help="Print help" action=help builtin=#true
     arg "[REFERENCE]..." help="Tool references to add; with a source flag, the one command to describe"
     complete reference run="shcomp __complete_word__ --candidates reference --line={{ words | shell_join | shell_quote }}"
+}
+cmd edit help="Edit the config in $VISUAL or $EDITOR, validated before it is written" {
+    flag --no-install help="Write the config but install nothing"
+    flag --no-prewarm help="Do not generate scripts now; the first Tab generates them"
+    flag "-h --help" help="Print help" action=help builtin=#true
 }
 cmd clean help="Remove cached completion scripts, or only the stale ones" {
     flag --stale help="Remove only scripts no `shcomp load` can reach any more"

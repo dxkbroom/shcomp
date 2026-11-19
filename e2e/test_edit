@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# edit validates the edited config before writing it, shows the diff, and
+# reconciles; an invalid edit leaves the config alone and keeps the draft.
+
+mkdir -p bin editors
+cat >bin/fake <<'SH'
+#!/bin/sh
+printf '#compdef fake\n_fake() { compadd one; }\n'
+SH
+chmod +x bin/fake
+export PATH="$PWD/bin:$PATH"
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+# my tools
+[tools]
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+original=$(cat "$SHCOMP_CONFIG")
+
+# An editor that changes nothing changes nothing.
+out=$(EDITOR=true VISUAL= "$SHCOMP_BIN" edit)
+assert_contains_text "$out" "no changes"
+
+# An invalid edit is refused; without a terminal there is no retry prompt.
+cat >editors/break <<'SH'
+#!/bin/sh
+sed -i 's|^\[tools\]$|[tools]\n"example/missing" = true|' "$1"
+SH
+chmod +x editors/break
+if out=$(EDITOR="$PWD/editors/break" "$SHCOMP_BIN" edit </dev/null 2>&1); then
+  fail "edit wrote a config that does not resolve"
+fi
+assert_contains_text "$out" "the edited config is invalid"
+assert_contains_text "$out" "your edit is kept in"
+[[ $(cat "$SHCOMP_CONFIG") == "$original" ]] || fail "an invalid edit changed the config"
+ok "an invalid edit leaves the config alone"
+draft=$(find "$SHCOMP_CONFIG_DIR" -name '.config.edit-*.toml' | head -1)
+[[ -n $draft ]] || fail "the draft was not kept"
+assert_file_contains "$draft" "example/missing"
+rm -f "$draft"
+
+# An editor that fails leaves the config alone too.
+if EDITOR=false "$SHCOMP_BIN" edit >/dev/null 2>&1; then
+  fail "edit should fail when the editor fails"
+fi
+ok "a failing editor is reported"
+rm -f "$SHCOMP_CONFIG_DIR"/.config.edit-*.toml
+
+# A good edit: the diff, the write, and the shim. Arguments in EDITOR work.
+cat >editors/select <<'SH'
+#!/bin/sh
+[ "$1" = "--wait" ] || exit 9
+sed -i 's/^\[tools\]$/[tools]\nfake = true/' "$2"
+SH
+chmod +x editors/select
+out=$(VISUAL="$PWD/editors/select --wait" "$SHCOMP_BIN" edit)
+assert_contains_text "$out" "+ fake = true"
+assert_contains_text "$out" "updated $SHCOMP_CONFIG"
+assert_file_contains "$SHCOMP_CONFIG" "fake = true"
+assert_file_contains "$SHCOMP_CONFIG" "# my tools"
+assert_exists "$SHCOMP_DATA_DIR/zsh/site-functions/_fake"
+leftover=$(find "$SHCOMP_CONFIG_DIR" -name '.config.edit-*' | wc -l)
+[[ $leftover -eq 0 ]] || fail "a draft was left behind"
+
+ok "edit"

@@ -40,6 +40,11 @@ A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
   `--dry-run` stops after the checks. Describing the same command again
   replaces its item.
 - `add` accepts several references.
+- `shcomp edit` opens the config in `$VISUAL`/`$EDITOR` on a copy, and writes
+  it only when it parses, validates, and resolves; it prints the diff and then
+  reconciles like `install` (`--no-install`, `--no-prewarm`). An invalid edit
+  leaves the config alone and keeps the draft, with a retry prompt under a
+  terminal.
 
 ### Changed
 
