@@ -48,7 +48,7 @@ Or pin a version in `mise.toml`:
 
 ```toml
 [tools]
-"packslip:github.com/dxkbroom/shcomp" = "0.0.2"
+"packslip:github.com/dxkbroom/shcomp" = "0.0.3"
 ```
 
 For local development, build from the checkout:
@@ -391,7 +391,7 @@ body, so the literal word reaches `_arguments` as the author intended. Other
 vendor failures are reported by `doctor --check`, which runs one real completion
 per tool and names the command that failed.
 
-## Known limitations in v0.0.2
+## Known limitations in v0.0.3
 
 - zsh and fish only; bash, Nushell and PowerShell are follow-up issues.
 - A vendor completion that needs several Tab presses to reach a different state
@@ -417,7 +417,7 @@ stub, its own shim wins, and `doctor` reports that as `ok`.
 
 ## Roadmap
 
-The follow-up issues are the plan beyond v0.0.2:
+The follow-up issues are the plan beyond v0.0.3:
 
 |Area|Issue|
 |---|---|

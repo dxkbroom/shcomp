@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (0.0.3)
+## v0.0.3
 
 A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
 "v0.0.3 plan". Entries land with each layer.

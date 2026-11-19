@@ -504,8 +504,8 @@ Each layer is green on its own and reviewable alone. The stack is bottom-up.
 
 ## v0.0.3 plan
 
-Status: planned. Layers land as a stack; this section is updated as they
-merge.
+Status: implemented in v0.0.3. All 11 layers merged into `main`: PRs 54
+through 60 and 62 through 65 (61 is the GitHub stack that grouped them).
 
 v0.0.3 is a quality-of-life release for the two shells shcomp already
 supports. It adds no registry items and no shells. The broker model, the
