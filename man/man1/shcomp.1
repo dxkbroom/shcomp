@@ -204,13 +204,34 @@ Name, workspace, or reference to search for
 .SH "SHCOMP ADD"
 Add a tool selection to the config
 .PP
-\fBUsage:\fR shcomp add [OPTIONS] <REFERENCE>
+\fBUsage:\fR shcomp add [OPTIONS] [<REFERENCE>] ...
 .PP
 \fBOptions:\fR
 .PP
 .TP
 \fB\-\-alias\fR \fI<ALIAS>\fR
 Extra command name to register; repeat for several
+.TP
+\fB\-\-run\fR \fI<RUN>\fR
+Command printing the completion, for every shell; `{shell}` and `{bin}` are filled in
+.TP
+\fB\-\-run\-zsh\fR \fI<RUN_ZSH>\fR
+Command printing the zsh completion
+.TP
+\fB\-\-run\-fish\fR \fI<RUN_FISH>\fR
+Command printing the fish completion
+.TP
+\fB\-\-url\fR \fI<URL>\fR
+Completion file to fetch, for the one `\-\-shell`
+.TP
+\fB\-\-usage\fR \fI<USAGE>\fR
+Command printing a usage KDL spec, rendered by the `usage` CLI
+.TP
+\fB\-s, \-\-shell\fR \fI<SHELL>\fR
+Shells the described command completes in; defaults to the installed ones
+.TP
+\fB\-\-description\fR \fI<DESCRIPTION>\fR
+Description for the described command
 .TP
 \fB\-n, \-\-dry\-run\fR
 Print what would change without changing anything
@@ -233,7 +254,7 @@ Print help
 .PP
 .TP
 \fB<REFERENCE>\fR
-Tool reference to add
+Tool references to add; with a source flag, the one command to describe
 .SH "SHCOMP CLEAN"
 Remove cached completion scripts, or only the stale ones
 .PP

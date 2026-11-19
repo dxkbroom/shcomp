@@ -31,6 +31,16 @@ A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
   and only the tools that complete in it. `ls --json` gains a `caches` object
   with each shell's `{ state, script, key }`; `cache` stays.
 
+- `add` describes a command the registry does not know: `--run` (every
+  shell), `--run-zsh`, `--run-fish`, `--url` with `--shell`, and `--usage`
+  write a `[[registry]]` item into the config. `{shell}` and `{bin}` are
+  placeholders, and a leading word naming the command becomes `{{ bin }}`.
+  Before writing, `add` checks the command is on `PATH`, runs the source once
+  per shell, and prints the item; a failing shell stops the write, and
+  `--dry-run` stops after the checks. Describing the same command again
+  replaces its item.
+- `add` accepts several references.
+
 ### Changed
 
 - `ls`'s `Cache` column shows every installed shell (`warm/cold`, `-` for no

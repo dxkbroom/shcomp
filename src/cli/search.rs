@@ -133,7 +133,7 @@ impl Search {
             Err(error) => return Err(error.into()),
         };
         crate::cli::add::Add {
-            reference: picked,
+            reference: vec![picked],
             ..Default::default()
         }
         .run()?;
