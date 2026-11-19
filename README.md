@@ -48,7 +48,7 @@ Or pin a version in `mise.toml`:
 
 ```toml
 [tools]
-"packslip:github.com/dxkbroom/shcomp" = "0.0.1"
+"packslip:github.com/dxkbroom/shcomp" = "0.0.2"
 ```
 
 For local development, build from the checkout:
@@ -323,9 +323,9 @@ body, so the literal word reaches `_arguments` as the author intended. Other
 vendor failures are reported by `doctor --check`, which runs one real completion
 per tool and names the command that failed.
 
-## Known limitations in v0.0.1
+## Known limitations in v0.0.2
 
-- zsh only.
+- zsh and fish only; bash, Nushell and PowerShell are follow-up issues.
 - A vendor completion that needs several Tab presses to reach a different state
   can report no candidates; `complete-word` runs one completion pass.
 - Candidate descriptions are captured when the vendor supplies them, but some
@@ -347,15 +347,13 @@ duplicate stub can be found and removed instead of silently competing.
 
 ## Roadmap
 
-The follow-up issues are the plan beyond v0.0.1:
+The follow-up issues are the plan beyond v0.0.2:
 
 |Area|Issue|
 |---|---|
 |bash shims|#1|
-|fish shims|#2|
 |Nushell and PowerShell|#3|
 |pacman and AUR helpers|#4|
-|usage-spec broker|#5|
 |help-scraping broker|#6|
 |project config and trust|#7|
 |bash-only output adapter|#8|
@@ -368,6 +366,7 @@ The follow-up issues are the plan beyond v0.0.1:
 |candidate descriptions|#15|
 |URL checksum policy|#16|
 |GitLab and other hosts|#17|
+|fish zero-fork experiment|#49|
 
 ## License
 

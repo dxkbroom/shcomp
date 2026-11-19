@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (0.0.2)
+## v0.0.2
 
 shcomp is pre-v1: this release settles the CLI and is allowed to break v0.0.1.
 The full rationale is in `PLAN.md` under "v0.0.2 plan"; this is the list a user
