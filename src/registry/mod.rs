@@ -274,11 +274,9 @@ impl Completions {
                 kind: self.kind,
                 timeout: self.timeout.clone(),
             }
-        } else if let Some(ov) = override_src {
-            // No default; override must be complete on its own
-            ov.to_source()?
         } else {
-            return None;
+            // No default; override must be complete on its own
+            override_src?.to_source()?
         };
 
         // Merge with per-shell override, if present
