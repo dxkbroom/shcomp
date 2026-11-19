@@ -47,7 +47,7 @@ impl Search {
         let config = Config::load_default()?;
         let registry = Registry::load(&config)?;
         let query = self.name.clone().unwrap_or_default();
-        let mut hits = search::search(&registry, &query, self.match_type);
+        let hits = search::search(&registry, &query, self.match_type);
 
         if self.complete || self.complete_ids {
             for candidate in search::into_candidates(hits, &query) {
@@ -65,7 +65,7 @@ impl Search {
         }
 
         if self.interactive {
-            return self.pick(&mut hits);
+            return self.pick(&hits);
         }
 
         if hits.is_empty() {
@@ -110,7 +110,7 @@ impl Search {
 
     /// Put the results in a filterable list and add whatever is picked. `add`
     /// prints its own report, so this only runs it.
-    fn pick(self, hits: &mut Vec<Hit>) -> Result<()> {
+    fn pick(self, hits: &[Hit]) -> Result<()> {
         let query = self.name.clone().unwrap_or_default();
         if hits.is_empty() {
             bail!("no registry item matches `{query}`");
