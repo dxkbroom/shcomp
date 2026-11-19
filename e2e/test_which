@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# which explains one command — selection, registry layer, binary, per-shell
+# source, cache, shim, and last load — and never runs the vendor.
+
+mkdir -p bin
+cat >bin/fake <<SH
+#!/bin/sh
+touch "$PWD/ran"
+case "\$1" in
+  zsh) printf '#compdef fake\n_fake() { compadd one; }\n' ;;
+  fish) printf 'complete -c fake -f -a one\n' ;;
+esac
+SH
+chmod +x bin/fake
+export PATH="$PWD/bin:$PATH"
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+"example/fake" = { aliases = ["fk"] }
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+description = "A stand-in"
+
+[[registry.tools]]
+name = "fake"
+shells = ["zsh", "fish"]
+
+[registry.tools.completions]
+run = ["{{ bin }}", "{{ shell }}"]
+TOML
+
+"$SHCOMP_BIN" install --no-prewarm >/dev/null
+rm -f ran
+
+out=$("$SHCOMP_BIN" which fk)
+assert_contains_text "$out" "fake"
+assert_contains_text "$out" "\`example/fake\` in [tools], aliases fk"
+assert_contains_text "$out" "example/fake — inline registry ($SHCOMP_CONFIG)"
+assert_contains_text "$out" "binary     $PWD/bin/fake"
+assert_contains_text "$out" "run: {{ bin }} {{ shell }}"
+assert_contains_text "$out" "cache cold"
+assert_contains_text "$out" "_fake (installed)"
+assert_contains_text "$out" "fake.fish (installed)"
+assert_contains_text "$out" "last load never"
+assert_not_exists ran
+
+"$SHCOMP_BIN" load --shell zsh --command fake --bin "$PWD/bin/fake" >/dev/null
+rm -f ran
+out=$("$SHCOMP_BIN" which fake --shell zsh)
+assert_contains_text "$out" "cache warm, key "
+assert_contains_text "$out" "last load ok just now"
+assert_not_contains_text "$out" "fake.fish"
+assert_not_exists ran
+
+json=$("$SHCOMP_BIN" which fake --json)
+assert_contains_text "$json" '"layer": "inline registry"'
+assert_contains_text "$json" '"state": "warm"'
+assert_contains_text "$json" '"state": "cold"'
+assert_contains_text "$json" '"mise_stub": false'
+assert_not_exists ran
+ok "which never runs the vendor"
+
+# shcomp's own entry is implicit and comes from the embedded registry.
+out=$("$SHCOMP_BIN" which shcomp)
+assert_contains_text "$out" "implicit"
+assert_contains_text "$out" "dxkbroom/shcomp — embedded"
+
+# A command the registry knows but the config does not select.
+if out=$("$SHCOMP_BIN" which gh); then
+  fail "which should exit non-zero for an unselected command"
+fi
+assert_contains_text "$out" "to add it: shcomp add gh"
+
+# A command nothing knows gets the inline-source suggestion.
+if out=$("$SHCOMP_BIN" which leaf); then
+  fail "which should exit non-zero for an unknown command"
+fi
+assert_contains_text "$out" "no registry knows it"
+assert_contains_text "$out" "shcomp add leaf --run '"
+
+ok "which"

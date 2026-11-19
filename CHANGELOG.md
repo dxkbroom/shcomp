@@ -46,6 +46,12 @@ A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
   leaves the config alone and keeps the draft, with a retry prompt under a
   terminal.
 
+- `shcomp which <command>` explains one command: its selection, the registry
+  item and layer, the resolved binary with its real path and version, and per
+  shell the source, cache state and key, shim, and last load, plus any mise
+  stub. It never runs the vendor. An unselected command gets the `add` line
+  that would select or describe it. `--shell` and `--json`.
+
 ### Changed
 
 - `ls`'s `Cache` column shows every installed shell (`warm/cold`, `-` for no
