@@ -133,6 +133,12 @@ or the tool is no longer selected — and `-n` lists them first. `install` does
 the same pruning quietly. `shcomp clean gh` and `shcomp clean -s fish` scope a
 full removal; plain `shcomp clean` still removes the whole cache.
 
+A Tab never prints shcomp's errors into your prompt, so `shcomp load` records
+what each cold load did instead. `shcomp doctor` reads those records: a
+generator that failed, with the first line it wrote to stderr, and a shell
+whose shims are installed but have never loaded — usually a missing loading
+line. The warm paths never call shcomp, so they never write anything.
+
 ## Config
 
 `${XDG_CONFIG_HOME}/shcomp/config.toml` declares which tools you want. It does

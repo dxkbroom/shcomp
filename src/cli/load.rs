@@ -26,14 +26,17 @@ impl Load {
     pub fn run(self) -> Result<()> {
         let config = Config::load_default()?;
         let registry = Registry::load(&config)?;
-        let path = crate::cache::load_or_generate(
-            &config,
-            &registry,
-            &self.command,
-            &self.shell,
-            std::path::Path::new(&self.bin),
-        )?;
-        println!("{}", path.display());
+        let bin = std::path::Path::new(&self.bin);
+        let result =
+            crate::cache::load_or_generate(&config, &registry, &self.command, &self.shell, bin);
+        // Only this command records: it is the cold path, and the shims
+        // discard its stderr, so the record is how a failure surfaces.
+        let record = match &result {
+            Ok(path) => crate::state::LoadRecord::success(&self.shell, &self.command, bin, path),
+            Err(error) => crate::state::LoadRecord::failure(&self.shell, &self.command, bin, error),
+        };
+        crate::state::record(&config, &record);
+        println!("{}", result?.display());
         Ok(())
     }
 }

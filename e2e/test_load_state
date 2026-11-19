@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# A cold load records its outcome: a failing generator stays silent at the
+# prompt and shows up in doctor, and a shell whose shims never loaded is named.
+
+mkdir -p bin shcompbin
+cat >bin/fake <<'SH'
+#!/bin/sh
+echo "fake: no such shell" >&2
+exit 2
+SH
+chmod +x bin/fake
+ln -s "$SHCOMP_BIN" shcompbin/shcomp
+
+cat >"$SHCOMP_CONFIG" <<'TOML'
+[tools]
+"example/fake" = true
+
+[settings]
+shells = ["zsh"]
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}", "completion", "zsh"]
+TOML
+
+export PATH="$PWD/shcompbin:$PWD/bin:$PATH"
+"$SHCOMP_BIN" install >/dev/null
+doctor=$("$SHCOMP_BIN" doctor || true)
+assert_contains_text "$doctor" "zsh: 2 shim(s) installed but none has loaded yet"
+
+# The shim's cold path: nothing reaches the terminal when the generator fails.
+if have_cmd zsh; then
+  shim_dir="$SHCOMP_DATA_DIR/zsh/site-functions"
+  out=$(zsh -f -c "fpath=('$shim_dir' \$fpath); autoload -Uz _fake; _fake; print -r -- rc=\$?" 2>&1)
+  assert_contains_text "$out" "rc=1"
+  assert_not_contains_text "$out" "no such shell"
+  assert_not_contains_text "$out" "shcomp:"
+else
+  "$SHCOMP_BIN" load --shell zsh --command fake --bin "$PWD/bin/fake" >/dev/null 2>&1 || true
+fi
+
+record="$SHCOMP_CACHE_DIR/state/zsh/fake.json"
+assert_exists "$record"
+assert_file_contains "$record" '"ok": false'
+doctor=$("$SHCOMP_BIN" doctor || true)
+assert_contains_text "$doctor" "fake (zsh): last load failed just now"
+assert_contains_text "$doctor" "fake: no such shell"
+
+# A fixed generator clears the failure on the next cold load.
+cat >bin/fake <<'SH'
+#!/bin/sh
+printf '#compdef fake\n_fake() { compadd one; }\n'
+SH
+out=$("$SHCOMP_BIN" load --shell zsh --command fake --bin "$PWD/bin/fake")
+assert_contains_text "$out" "$SHCOMP_CACHE_DIR/scripts/zsh/fake/"
+assert_file_contains "$record" '"ok": true'
+doctor=$("$SHCOMP_BIN" doctor || true)
+assert_contains_text "$doctor" "zsh: 1 command(s) loaded, no failures"
+assert_not_contains_text "$doctor" "none has loaded yet"
+
+# A warm reload with the same outcome does not rewrite the record.
+before=$(cat "$record")
+sleep 1
+"$SHCOMP_BIN" load --shell zsh --command fake --bin "$PWD/bin/fake" >/dev/null
+[[ $(cat "$record") == "$before" ]] || fail "an unchanged outcome rewrote the record"
+ok "an unchanged outcome is not rewritten"
+
+ok "load state"
