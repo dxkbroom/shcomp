@@ -52,7 +52,17 @@ A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
   stub. It never runs the vendor. An unselected command gets the `add` line
   that would select or describe it. `--shell` and `--json`.
 
+- `doctor --check` starts the interactive zsh and fish with a timeout and reads
+  `fpath` / `fish_complete_path` back (ADR-0012): it reports whether the loading
+  line is in effect (with the line to add), a `_cmd` or `cmd.fish` earlier on
+  the path that shadows a shim, and a static `_shcomp` or `shcomp.fish` left by
+  v0.0.1 (with the `rm` to run).
+
 ### Changed
+
+- `install` and `add` print a shell's loading line only when shcomp has no
+  evidence it is in effect: a shim has loaded there, or the last
+  `doctor --check` found the directory on the path.
 
 - `ls`'s `Cache` column shows every installed shell (`warm/cold`, `-` for no
   source) under a `Cache (zsh/fish)` header.

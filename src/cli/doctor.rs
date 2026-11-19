@@ -83,9 +83,15 @@ fn findings(config: &Config, registry: &Registry, check: bool) -> Result<Vec<Fin
     let shells = &config.settings.shells;
     if shells.iter().any(|shell| shell == "zsh") {
         findings.extend(crate::shell::zsh::doctor(config, registry, check)?);
+        if check {
+            findings.extend(crate::shell::probe::findings(config, registry, "zsh"));
+        }
     }
     if shells.iter().any(|shell| shell == "fish") {
         findings.extend(crate::shell::fish::doctor(config, registry, check)?);
+        if check {
+            findings.extend(crate::shell::probe::findings(config, registry, "fish"));
+        }
     }
 
     findings.extend(mise_findings(crate::shell::zsh::mise_owned_commands(

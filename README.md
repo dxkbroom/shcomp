@@ -114,7 +114,9 @@ before `compinit`:
 fpath=("$XDG_DATA_HOME/shcomp/zsh/site-functions" $fpath)
 ```
 
-Then restart the shell, or run `compinit` again.
+Then restart the shell, or run `compinit` again. Once a shim has loaded, or
+`shcomp doctor --check` has seen the directory on your path, `install` and
+`add` stop printing the line.
 
 `install` also generates each selected tool's script for the version on your
 `PATH`, so the first Tab is already warm; a generator that fails is reported
@@ -296,7 +298,7 @@ the hash it fetched for a version-pinned URL.
 | --- | --- |
 | `shcomp install [-n] [-s <shell>] [--no-prewarm] [--json]` | Reconcile zsh/fish shims (including shcomp's own), fetch URL sources, prewarm scripts, and prune stale ones. |
 | `shcomp uninstall` | Remove shcomp-owned shims. |
-| `shcomp doctor` | Sectioned checks for zsh, fish, mise, the cache, and recent loads; `--check` runs each generator, `--json` for machines, exits 1 on an error. |
+| `shcomp doctor` | Sectioned checks for zsh, fish, mise, the cache, and recent loads; `--check` runs each generator and asks your interactive shells for their path, `--json` for machines, exits 1 on an error. |
 | `shcomp ls [-s <shell>] [--all] [--no-header] [--json]` | Selected tools, sources, per-shell cache state, and owner. |
 | `shcomp which <command> [-s <shell>] [--json]` | Explain how one command is completed, without running it. |
 | `shcomp search [name]` | Find a reference to add; `-i` picks from a menu. |
@@ -362,6 +364,13 @@ SHCOMP_LOG=shcomp::cache=debug shcomp ls
 which is how to see what happened during a Tab — the shell swallows stderr
 there. Logs never go to stdout, so `shcomp load` and `shcomp completion` stay
 script-safe.
+
+`shcomp doctor --check` starts your interactive zsh and fish (with a timeout)
+and reads `fpath` and `fish_complete_path` back from them, so it can say
+whether the loading line is really in effect, whether another `_gh` or
+`gh.fish` earlier on the path shadows a shim, and whether a static `_shcomp`
+saved by hand from v0.0.1 is still around — with the line to add or the file
+to remove.
 
 ## When a vendor completion is broken
 

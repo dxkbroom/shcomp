@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 
 pub mod fish;
+pub mod probe;
 pub mod zsh;
 
 /// What a reconcile did to one shim.
