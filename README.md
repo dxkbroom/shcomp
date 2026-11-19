@@ -17,7 +17,7 @@ reinstalling anything.
 > existing configuration or cached data to be updated. Every break is listed in
 > `CHANGELOG.md` under the version that makes it.
 
-Status: v0.1.0 targets zsh and fish. bash, Nushell and PowerShell are tracked as
+Status: v0.0.2 targets zsh and fish. bash, Nushell and PowerShell are tracked as
 follow-up issues.
 
 ## Why
