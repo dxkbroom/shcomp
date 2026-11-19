@@ -280,7 +280,7 @@ pub fn doctor(config: &Config, registry: &Registry, check: bool) -> Result<Vec<F
                                 "zsh",
                                 format!("{command}: generator ok ({})", script.display()),
                             ));
-                            findings.push(smoke(config, registry, command));
+                            findings.push(smoke(config, registry, command, "zsh"));
                         }
                         Err(error) => findings.push(Finding::error(
                             "zsh",
@@ -327,30 +327,35 @@ pub fn doctor(config: &Config, registry: &Registry, check: bool) -> Result<Vec<F
 /// The failure this catches is the vendor's, not shcomp's: an unquoted glob or
 /// a helper that does not exist. The shim guards the first (gradle's case);
 /// anything else shows up here as an error or an empty answer.
-fn smoke(config: &Config, registry: &Registry, command: &str) -> Finding {
+pub(crate) fn smoke(
+    config: &Config,
+    registry: &Registry,
+    command: &str,
+    shell: &'static str,
+) -> Finding {
     let request = crate::complete::Request {
         tool: command.to_string(),
         version: None,
         words: vec![command.to_string(), String::new()],
         cword: None,
-        shell: "zsh".to_string(),
+        shell: shell.to_string(),
     };
     match crate::complete::complete(config, registry, &request) {
         Ok(result) if result.candidates.is_empty() => Finding::warn(
-            "zsh",
+            shell,
             format!(
-                "{command}: smoke completion returned nothing; the vendor completion may be broken (run `shcomp complete-word {command} {command} \"\"`)"
+                "{command}: smoke completion returned nothing; the vendor completion may be broken (run `shcomp complete-word --shell {shell} {command} {command} \"\"`)"
             ),
         ),
         Ok(result) => Finding::ok(
-            "zsh",
+            shell,
             format!(
                 "{command}: smoke completion ok ({} candidate(s))",
                 result.candidates.len()
             ),
         ),
         Err(error) => Finding::error(
-            "zsh",
+            shell,
             format!("{command}: smoke completion failed: {error}"),
         ),
     }

@@ -170,6 +170,131 @@ pub fn uninstall(config: &Config, dry_run: bool) -> Result<Vec<PathBuf>> {
     Ok(removed)
 }
 
+/// Check the fish shims against the selection, as `zsh::doctor` does for zsh.
+///
+/// A missing or foreign shim for a command is an error; a missing alias shim,
+/// a shim whose content no longer matches, and a shim for a command that is no
+/// longer selected are warnings that `shcomp install` fixes.
+pub fn doctor(
+    config: &Config,
+    registry: &Registry,
+    check: bool,
+) -> Result<Vec<crate::report::Finding>> {
+    use crate::report::Finding;
+
+    let mut findings = Vec::new();
+    let expected = expected_commands(registry, config, "fish")?;
+    let dir = site_completions(config)?;
+    if !dir.is_dir() {
+        findings.push(Finding::error(
+            "fish",
+            format!("missing shim directory: {}", dir.display()),
+        ));
+    }
+
+    let mut expected_names: BTreeSet<String> = BTreeSet::new();
+    for (command, aliases) in &expected {
+        let mut command_ok = true;
+        let mut stale = Vec::new();
+        for name in std::iter::once(command).chain(aliases.iter()) {
+            expected_names.insert(name.clone());
+            let path = shim_path(config, name)?;
+            let Ok(text) = std::fs::read_to_string(&path) else {
+                if name == command {
+                    findings.push(Finding::error(
+                        "fish",
+                        format!("{command}: missing shim; run `shcomp install`"),
+                    ));
+                    command_ok = false;
+                } else {
+                    stale.push(name.clone());
+                }
+                continue;
+            };
+            if !text.contains(MARKER) {
+                findings.push(Finding::error(
+                    "fish",
+                    format!("{name}: {} is not a shcomp shim", path.display()),
+                ));
+                command_ok = command_ok && name != command;
+                continue;
+            }
+            if text != render_shim(name, command) {
+                stale.push(name.clone());
+            }
+        }
+        if !stale.is_empty() {
+            findings.push(Finding::warn(
+                "fish",
+                format!(
+                    "{command}: shim is stale for {}; run `shcomp install`",
+                    stale.join(", ")
+                ),
+            ));
+        }
+        if check && command_ok {
+            findings.extend(check_command(config, registry, command));
+        }
+    }
+
+    if dir.is_dir() {
+        for entry in std::fs::read_dir(&dir)? {
+            let path = entry?.path();
+            if !owned(&path) {
+                continue;
+            }
+            let Some(name) = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .and_then(|name| name.strip_suffix(".fish"))
+            else {
+                continue;
+            };
+            if !expected_names.contains(name) {
+                findings.push(Finding::warn(
+                    "fish",
+                    format!(
+                        "{name}: stale shim {}; run `shcomp install`",
+                        path.display()
+                    ),
+                ));
+            }
+        }
+    }
+
+    Ok(findings)
+}
+
+/// `doctor --check` for one command: run its fish generator, then one real
+/// completion through a child fish when fish is installed.
+fn check_command(
+    config: &Config,
+    registry: &Registry,
+    command: &str,
+) -> Vec<crate::report::Finding> {
+    use crate::report::Finding;
+
+    let Ok(bin) = crate::source::resolve_binary(command) else {
+        return vec![Finding::warn("fish", format!("{command}: not on PATH"))];
+    };
+    match crate::cache::load_or_generate(config, registry, command, "fish", &bin) {
+        Ok(script) => {
+            let mut findings = vec![Finding::ok(
+                "fish",
+                format!("{command}: generator ok ({})", script.display()),
+            )];
+            if crate::source::resolve_binary("fish").is_ok() {
+                findings.push(super::zsh::smoke(config, registry, command, "fish"));
+            }
+            findings
+        }
+        Err(error) => vec![Finding::error(
+            "fish",
+            format!("{command}: generator failed: {error}"),
+        )],
+    }
+}
+
 fn owned(path: &Path) -> bool {
     path.is_file() && std::fs::read_to_string(path).is_ok_and(|text| text.contains(MARKER))
 }

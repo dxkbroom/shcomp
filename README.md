@@ -253,7 +253,7 @@ the hash it fetched for a version-pinned URL.
 | --- | --- |
 | `shcomp install [-n] [-s <shell>] [--json]` | Reconcile zsh/fish shims (including shcomp's own) and fetch URL sources. |
 | `shcomp uninstall` | Remove shcomp-owned shims. |
-| `shcomp doctor` | Sectioned checks; `--check` runs each generator, `--json` for machines, exits 1 on an error. |
+| `shcomp doctor` | Sectioned checks for zsh, fish, mise, the cache, and recent loads; `--check` runs each generator, `--json` for machines, exits 1 on an error. |
 | `shcomp ls [--all] [--no-header] [--json]` | Selected tools, sources, cache state, and owner. |
 | `shcomp search [name]` | Find a reference to add; `-i` picks from a menu. |
 | `shcomp add [-n] [--no-install] <reference>` | Add a selection and reconcile its shim. |
@@ -356,7 +356,9 @@ installed versions.
 mise is not consulted about ownership: if you selected a tool in shcomp, shcomp
 writes the shim, even when mise's packslip loader could complete it too.
 `doctor` and `ls` say when mise also provides one (`owner: shcomp+mise`), so a
-duplicate stub can be found and removed instead of silently competing.
+duplicate stub can be found and removed instead of silently competing. The
+one exception is shcomp itself: installed through packslip, it always has a mise
+stub, its own shim wins, and `doctor` reports that as `ok`.
 
 ## Roadmap
 
