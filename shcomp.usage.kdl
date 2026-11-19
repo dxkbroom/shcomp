@@ -94,6 +94,17 @@ cmd search help="Search the registry for a tool to add" {
     arg "[NAME]" help="Name, workspace, or reference to search for"
     complete name run="shcomp __complete_word__ --candidates name --line={{ words | shell_join | shell_quote }}"
 }
+cmd which help="Explain how one command is completed, without running it" {
+    flag "-s --shell" help="Only this shell; defaults to every installed shell" {
+        arg <SHELL> {
+            choices zsh fish
+        }
+    }
+    flag --json help="Machine-readable output"
+    flag "-h --help" help="Print help" action=help builtin=#true
+    arg <COMMAND> help="The command as you type it; an alias works too"
+    complete command run="shcomp __complete_word__ --candidates command --line={{ words | shell_join | shell_quote }}"
+}
 cmd add help="Add tool selections to the config, or describe a new command" {
     flag --alias help="Extra command name to register; repeat for several" var=#true {
         arg <ALIAS>

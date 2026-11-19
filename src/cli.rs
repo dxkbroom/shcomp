@@ -21,6 +21,7 @@ pub mod schema;
 pub mod search;
 pub mod uninstall;
 pub mod usage;
+pub mod which;
 
 pub use add::Add;
 pub use clean::Clean;
@@ -35,6 +36,7 @@ pub use schema::Schema;
 pub use search::Search;
 pub use uninstall::Uninstall;
 pub use usage::Usage;
+pub use which::Which;
 
 #[derive(Debug, usage_rs::Cli)]
 #[usage(
@@ -81,6 +83,9 @@ pub enum Commands {
 
     /// Search the registry for a tool to add
     Search(Search),
+
+    /// Explain how one command is completed, without running it
+    Which(Which),
 
     /// Add tool selections to the config, or describe a new command
     Add(Add),
@@ -129,6 +134,7 @@ impl Commands {
             Self::Search(_) => "search",
             Self::Add(_) => "add",
             Self::Clean(_) => "clean",
+            Self::Which(_) => "which",
             Self::Edit(_) => "edit",
             Self::Schema(_) => "schema",
             Self::Usage(_) => "usage",
@@ -152,6 +158,7 @@ impl Commands {
             Self::Search(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Add(command) => command.run(),
             Self::Clean(command) => command.run().map(|()| ExitCode::SUCCESS),
+            Self::Which(command) => command.run(),
             Self::Edit(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Schema(command) => command.run().map(|()| ExitCode::SUCCESS),
             Self::Usage(command) => command.run().map(|()| ExitCode::SUCCESS),

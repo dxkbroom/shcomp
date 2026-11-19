@@ -155,6 +155,13 @@ its source, its cache state, and only the tools that complete there. `--all`
 adds selections you have disabled, and `--json` carries the same fields for
 scripts, with a `caches` object holding each shell's entry.
 
+`shcomp which gh` explains one command end to end: how it is selected, which
+registry layer the recipe comes from, the binary the shell would resolve (and
+its real path and version), and for each shell the source, the cache key and
+whether it is warm, the shim, and the last load. It never runs the command, so
+it is safe on a tool whose completion is broken. For a command nothing selects
+it says how to add it — `shcomp add leaf --run '...'` when no registry knows it.
+
 Every cached script has a sidecar `<key>.json` beside it that names the
 command, shell, and binary it came from. `shcomp clean --stale` uses it to
 remove scripts no Tab can reach any more — the binary is gone, it was rebuilt,
@@ -291,6 +298,7 @@ the hash it fetched for a version-pinned URL.
 | `shcomp uninstall` | Remove shcomp-owned shims. |
 | `shcomp doctor` | Sectioned checks for zsh, fish, mise, the cache, and recent loads; `--check` runs each generator, `--json` for machines, exits 1 on an error. |
 | `shcomp ls [-s <shell>] [--all] [--no-header] [--json]` | Selected tools, sources, per-shell cache state, and owner. |
+| `shcomp which <command> [-s <shell>] [--json]` | Explain how one command is completed, without running it. |
 | `shcomp search [name]` | Find a reference to add; `-i` picks from a menu. |
 | `shcomp add [-n] [--no-install] <reference>...` | Add selections and reconcile their shims; `--run`/`--url`/`--usage` describe a new command. |
 | `shcomp edit [--no-install]` | Edit the config in `$VISUAL`/`$EDITOR`; validated, diffed, then reconciled. |
