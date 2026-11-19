@@ -184,6 +184,13 @@ gh = true
 timeout = "5s"
 ```
 
+`shcomp edit` opens this file in `$VISUAL` or `$EDITOR` and checks the result
+before it replaces the config: it must parse, validate, and resolve every
+selection against the registry. An invalid edit is reported and the config is
+left alone (under a terminal you are offered another try; otherwise the draft
+is kept beside the config). A valid one prints the diff, is written, and the
+shims are reconciled as `install` would; `--no-install` writes only the config.
+
 A selection can also be disabled or limited to some shells:
 
 ```toml
@@ -286,6 +293,7 @@ the hash it fetched for a version-pinned URL.
 | `shcomp ls [-s <shell>] [--all] [--no-header] [--json]` | Selected tools, sources, per-shell cache state, and owner. |
 | `shcomp search [name]` | Find a reference to add; `-i` picks from a menu. |
 | `shcomp add [-n] [--no-install] <reference>...` | Add selections and reconcile their shims; `--run`/`--url`/`--usage` describe a new command. |
+| `shcomp edit [--no-install]` | Edit the config in `$VISUAL`/`$EDITOR`; validated, diffed, then reconciled. |
 | `shcomp clean [--stale] [-n] [-s <shell>] [tool...]` | Remove cached scripts: all of them, one tool's or shell's, or only the stale ones. |
 | `shcomp complete-word` | Probe candidates through the target shell. |
 | `shcomp schema [--registry]` | Print JSON Schema. |

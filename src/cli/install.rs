@@ -8,7 +8,7 @@ use crate::config::Config;
 use crate::registry::Registry;
 use crate::shell::{ShellReport, ShimStatus};
 
-#[derive(Debug, usage_rs::Args)]
+#[derive(Debug, Default, usage_rs::Args)]
 pub struct Install {
     /// Do not fetch URL sources
     #[usage(long)]
@@ -42,22 +42,27 @@ pub struct Install {
 
 impl Install {
     pub fn run(self) -> Result<()> {
-        let config = Config::load_default()?;
-        let registry = Registry::load(&config)?;
-        let shells = shells(&config, &self.shell)?;
+        self.run_with(&Config::load_default()?)
+    }
+
+    /// Install for a config that is already loaded; `edit` passes the one it
+    /// just wrote.
+    pub fn run_with(self, config: &Config) -> Result<()> {
+        let registry = Registry::load(config)?;
+        let shells = shells(config, &self.shell)?;
         let fetch = !self.no_fetch && !self.offline && !self.dry_run;
-        let prewarm = (!self.dry_run && prewarm_enabled(&config, self.prewarm, self.no_prewarm))
+        let prewarm = (!self.dry_run && prewarm_enabled(config, self.prewarm, self.no_prewarm))
             .then_some(crate::cache::Prewarm {
                 shells: &shells,
                 only: None,
             });
-        let notes = crate::cache::prefetch(&config, &registry, prewarm, fetch)?;
-        let reports = reconcile(&config, &registry, &shells, self.dry_run)?;
+        let notes = crate::cache::prefetch(config, &registry, prewarm, fetch)?;
+        let reports = reconcile(config, &registry, &shells, self.dry_run)?;
         // Scripts no load can reach go quietly; `-v` names them.
         let pruned = if self.dry_run {
             0
         } else {
-            crate::cache::prune(&config, &registry)?
+            crate::cache::prune(config, &registry)?
         };
 
         // One row per command, one cell per shell. A command with no source for
