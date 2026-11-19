@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# add describes a command the registry does not know: it checks the command is
+# on PATH, runs the source once per shell, shows the item, and only then writes
+# it. This is the real `leaf --auto-complete fish:dump` shape, with a fake leaf.
+
+mkdir -p bin shcompbin
+cat >bin/leaf <<'SH'
+#!/bin/sh
+[ "$1" = "--auto-complete" ] || { echo "leaf: unknown flag $1" >&2; exit 2; }
+case "$2" in
+  zsh:dump) printf '#compdef leaf\n_leaf() { compadd grow prune; }\n' ;;
+  fish:dump) printf 'complete -c leaf -f -a "grow prune"\n' ;;
+  *) echo "leaf: unknown shell ${2%%:*}" >&2; exit 2 ;;
+esac
+SH
+cat >bin/bush <<'SH'
+#!/bin/sh
+printf '#compdef bush\n_bush() { compadd x; }\n'
+SH
+chmod +x bin/leaf bin/bush
+ln -s "$SHCOMP_BIN" shcompbin/shcomp
+export PATH="$PWD/shcompbin:$PWD/bin:$PATH"
+
+# A dry run shows the item and the checks and writes nothing.
+preview=$("$SHCOMP_BIN" add leaf --run 'leaf --auto-complete {shell}:dump' --dry-run)
+assert_contains_text "$preview" '[[registry.tools]]'
+assert_contains_text "$preview" 'run = ["{{ bin }}", "--auto-complete", "{{ shell }}:dump"]'
+assert_contains_text "$preview" "zsh: ok (2 line(s))"
+assert_contains_text "$preview" "fish: ok (1 line(s))"
+assert_contains_text "$preview" "would add leaf (inline registry item)"
+assert_not_exists "$SHCOMP_CONFIG"
+assert_not_exists "$SHCOMP_DATA_DIR/zsh/site-functions/_leaf"
+
+# A source that fails in one shell is refused, with the vendor's own words.
+if out=$("$SHCOMP_BIN" add leaf --run 'leaf --auto-complete {shell}' 2>&1); then
+  fail "add wrote a source that does not work"
+fi
+assert_contains_text "$out" "zsh: failed:"
+assert_contains_text "$out" "leaf: unknown shell"
+assert_contains_text "$out" "not writing \`leaf\`"
+assert_not_exists "$SHCOMP_CONFIG"
+
+# A command that is not installed is refused before anything runs.
+if out=$("$SHCOMP_BIN" add twig --run 'twig completions {shell}' 2>&1); then
+  fail "add wrote a command that is not on PATH"
+fi
+assert_contains_text "$out" "\`twig\` is not on PATH"
+
+# A name the registry already has is selected, not redescribed.
+if out=$("$SHCOMP_BIN" add gh --run 'gh completion -s {shell}' 2>&1); then
+  fail "add redescribed a registry tool"
+fi
+assert_contains_text "$out" "already in the registry"
+
+# The real thing: the item and the selection are written, and leaf completes.
+out=$("$SHCOMP_BIN" add leaf --run 'leaf --auto-complete {shell}:dump' --description 'Leaf CLI')
+assert_contains_text "$out" "added leaf (inline registry item)"
+assert_contains_text "$out" "prewarmed 2 script(s)"
+assert_file_contains "$SHCOMP_CONFIG" 'leaf = true'
+assert_file_contains "$SHCOMP_CONFIG" 'description = "Leaf CLI"'
+assert_exists "$SHCOMP_DATA_DIR/zsh/site-functions/_leaf"
+assert_exists "$SHCOMP_DATA_DIR/fish/completions/leaf.fish"
+search=$("$SHCOMP_BIN" search leaf)
+assert_contains_text "$search" "Leaf CLI"
+if have_cmd zsh; then
+  words=$("$SHCOMP_BIN" complete-word --shell zsh leaf leaf "")
+  assert_contains_text "$words" "grow"
+fi
+if have_cmd fish; then
+  words=$("$SHCOMP_BIN" complete-word --shell fish leaf leaf "")
+  assert_contains_text "$words" "prune"
+fi
+
+# Describing it again replaces the earlier item instead of adding a second.
+out=$("$SHCOMP_BIN" add leaf --run-fish 'leaf --auto-complete fish:dump')
+assert_contains_text "$out" "updated leaf (inline registry item)"
+count=$(grep -c '^\[\[registry\]\]' "$SHCOMP_CONFIG")
+[[ $count -eq 1 ]] || fail "expected one inline item, found $count"
+assert_file_contains "$SHCOMP_CONFIG" 'shells = ["fish"]'
+assert_file_contains "$SHCOMP_CONFIG" '[registry.tools.completions.fish]'
+
+# Several references at once; inline flags still need exactly one.
+cat >>"$SHCOMP_CONFIG" <<'TOML'
+
+[[registry]]
+repo = "example/bush"
+main = "bush"
+
+[[registry.tools]]
+name = "bush"
+
+[registry.tools.completions.zsh]
+run = ["{{ bin }}"]
+TOML
+out=$("$SHCOMP_BIN" add bush leaf --no-prewarm)
+assert_contains_text "$out" "added bush (bush)"
+assert_contains_text "$out" "leaf (leaf) is already selected"
+if "$SHCOMP_BIN" add bush leaf --run 'x' >/dev/null 2>&1; then
+  fail "a source flag with two references should be refused"
+fi
+ok "a source flag needs exactly one reference"
+
+ok "add with an inline source"

@@ -79,14 +79,32 @@ shcomp add cli/cli --alias github
 shcomp add eza-community/eza --alias ll --alias lt
 ```
 
-`add` finishes the job: it writes the selection, writes the shim, fetches any
-URL source, and prints the loading line. `--no-install` writes only the
+`add` takes several references at once (`shcomp add gh uv just`). It finishes
+the job: it writes the selections, writes the shims, fetches any URL source,
+prewarms the scripts, and prints the loading line. `--no-install` writes only the
 config, `--force` replaces the selection's aliases instead of adding to them,
 and `-n/--dry-run` reports what it would do without touching anything.
 `--dry-run-code` exits 1 when there is work, which is what a script wants to
 know. `add` compares what references resolve to, not how they are spelled:
 with `tv` selected, `shcomp add alexpasmantier/television/tv` says it is already
 selected, and `doctor` warns about a config that selects one tool twice.
+
+A command the registry does not know can be described on the spot. `{shell}`
+and `{bin}` are filled in, and a leading word naming the command runs the
+executable the shell resolved:
+
+```sh
+shcomp add leaf --run 'leaf --auto-complete {shell}:dump'
+shcomp add leaf --run-fish 'leaf --auto-complete fish:dump'
+shcomp add mytool --url https://example.com/_mytool --shell zsh
+shcomp add mytool --usage 'mytool usage'
+```
+
+Before writing anything, `add` checks that the command is on `PATH`, runs the
+source once per shell, and prints the `[[registry]]` item it is about to add to
+your config. A shell whose source fails stops the write, with the command's own
+error; `--dry-run` stops after the checks. Running it again for the same
+command replaces the item instead of adding a second one.
 
 `shcomp install` writes one shim per selected command, plus shcomp's own, into
 `${XDG_DATA_HOME}/shcomp/zsh/site-functions` and prints the one line to add
@@ -267,7 +285,7 @@ the hash it fetched for a version-pinned URL.
 | `shcomp doctor` | Sectioned checks for zsh, fish, mise, the cache, and recent loads; `--check` runs each generator, `--json` for machines, exits 1 on an error. |
 | `shcomp ls [-s <shell>] [--all] [--no-header] [--json]` | Selected tools, sources, per-shell cache state, and owner. |
 | `shcomp search [name]` | Find a reference to add; `-i` picks from a menu. |
-| `shcomp add [-n] [--no-install] <reference>` | Add a selection and reconcile its shim. |
+| `shcomp add [-n] [--no-install] <reference>...` | Add selections and reconcile their shims; `--run`/`--url`/`--usage` describe a new command. |
 | `shcomp clean [--stale] [-n] [-s <shell>] [tool...]` | Remove cached scripts: all of them, one tool's or shell's, or only the stale ones. |
 | `shcomp complete-word` | Probe candidates through the target shell. |
 | `shcomp schema [--registry]` | Print JSON Schema. |

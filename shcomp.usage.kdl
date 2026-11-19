@@ -98,13 +98,36 @@ cmd add help="Add a tool selection to the config" {
     flag --alias help="Extra command name to register; repeat for several" var=#true {
         arg <ALIAS>
     }
+    flag --run help="Command printing the completion, for every shell; `{shell}` and `{bin}` are filled in" {
+        arg <RUN>
+    }
+    flag --run-zsh help="Command printing the zsh completion" {
+        arg <RUN_ZSH>
+    }
+    flag --run-fish help="Command printing the fish completion" {
+        arg <RUN_FISH>
+    }
+    flag --url help="Completion file to fetch, for the one `--shell`" {
+        arg <URL>
+    }
+    flag --usage help="Command printing a usage KDL spec, rendered by the `usage` CLI" {
+        arg <USAGE>
+    }
+    flag "-s --shell" help="Shells the described command completes in; defaults to the installed ones" var=#true {
+        arg <SHELL> {
+            choices zsh fish
+        }
+    }
+    flag --description help="Description for the described command" {
+        arg <DESCRIPTION>
+    }
     flag "-n --dry-run" help="Print what would change without changing anything"
     flag --dry-run-code help="With --dry-run, exit 1 when there is something to do" requires=--dry-run
     flag --no-install help="Write the selection but install nothing"
     flag "-f --force" help="Replace the selection's aliases instead of adding to them"
     flag --no-prewarm help="Do not generate the script now; the first Tab generates it"
     flag "-h --help" help="Print help" action=help builtin=#true
-    arg <REFERENCE> help="Tool reference to add"
+    arg "[REFERENCE]..." help="Tool references to add; with a source flag, the one command to describe"
     complete reference run="shcomp __complete_word__ --candidates reference --line={{ words | shell_join | shell_quote }}"
 }
 cmd clean help="Remove cached completion scripts, or only the stale ones" {
