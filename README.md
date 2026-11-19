@@ -84,7 +84,9 @@ URL source, and prints the loading line. `--no-install` writes only the
 config, `--force` replaces the selection's aliases instead of adding to them,
 and `-n/--dry-run` reports what it would do without touching anything.
 `--dry-run-code` exits 1 when there is work, which is what a script wants to
-know.
+know. `add` compares what references resolve to, not how they are spelled:
+with `tv` selected, `shcomp add alexpasmantier/television/tv` says it is already
+selected, and `doctor` warns about a config that selects one tool twice.
 
 `shcomp install` writes one shim per selected command, plus shcomp's own, into
 `${XDG_DATA_HOME}/shcomp/zsh/site-functions` and prints the one line to add

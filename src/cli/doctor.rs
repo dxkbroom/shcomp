@@ -64,6 +64,17 @@ fn findings(config: &Config, registry: &Registry, check: bool) -> Result<Vec<Fin
         )),
     }
 
+    for (name, references) in registry.duplicates(config) {
+        let times = match references.len() {
+            2 => "twice".to_string(),
+            count => format!("{count} times"),
+        };
+        findings.push(Finding::warn(
+            "config",
+            format!("{name} is selected {times} ({})", references.join(", ")),
+        ));
+    }
+
     findings.push(Finding::ok(
         "registry",
         format!("{} item(s)", registry.entries().len()),

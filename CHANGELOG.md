@@ -22,6 +22,10 @@ A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
   runs each fish generator and one completion through fish, and `dirs` lists
   the fish directory. Each shell is checked only when `[settings].shells`
   includes it.
+- `doctor` warns when two config keys select the same registry tool
+  (`tv is selected twice (tv, alexpasmantier/television/tv)`). `add` compares
+  resolved tools too: adding a tool that is already selected under another key
+  writes nothing, and new `--alias` values go to the existing key.
 
 ### Changed
 

@@ -58,13 +58,28 @@ impl Add {
             .resolve_str(&self.reference)
             .wrap_err_with(|| format!("cannot add `{}`", self.reference))?;
         let command = resolved.tool.name.clone();
+        // `tv` and `alexpasmantier/television/tv` are one tool: an existing key
+        // for it is where any new aliases go, and no second key is written.
+        let existing = registry.selection_key(&config, &resolved);
+        let key = existing.clone().unwrap_or_else(|| self.reference.clone());
+        let already = match &existing {
+            Some(existing) if *existing != self.reference => format!(
+                "{} ({command}) is already selected as {existing} in {}",
+                self.reference,
+                config_path.display()
+            ),
+            _ => format!(
+                "{} ({command}) is already selected in {}",
+                self.reference,
+                config_path.display()
+            ),
+        };
         let original = if config_path.exists() {
             std::fs::read_to_string(&config_path)?
         } else {
             String::new()
         };
-        let updated =
-            crate::config::add_selection(&original, &self.reference, &self.alias, self.force)?;
+        let updated = crate::config::add_selection(&original, &key, &self.alias, self.force)?;
         let changed = updated != original;
 
         // Every preview and every write below works from the config as it would
@@ -73,18 +88,19 @@ impl Add {
             toml::from_str(&updated).wrap_err("cannot parse the updated config")?;
 
         if self.dry_run {
-            if changed {
+            if changed && existing.is_some() {
+                println!(
+                    "would update {key} ({command}) in {}",
+                    config_path.display()
+                );
+            } else if changed {
                 println!(
                     "would add {} ({command}) to {}",
                     self.reference,
                     config_path.display()
                 );
             } else {
-                println!(
-                    "{} ({command}) is already selected in {}",
-                    self.reference,
-                    config_path.display()
-                );
+                println!("{already}");
             }
             let mut work = changed;
             if !self.no_install {
@@ -118,17 +134,17 @@ impl Add {
                 std::fs::create_dir_all(parent)?;
             }
             std::fs::write(&config_path, &updated)?;
-            println!(
-                "added {} ({command}) to {}",
-                self.reference,
-                config_path.display()
-            );
+            if existing.is_some() {
+                println!("updated {key} ({command}) in {}", config_path.display());
+            } else {
+                println!(
+                    "added {} ({command}) to {}",
+                    self.reference,
+                    config_path.display()
+                );
+            }
         } else {
-            println!(
-                "{} ({command}) is already selected in {}",
-                self.reference,
-                config_path.display()
-            );
+            println!("{already}");
         }
 
         if self.no_install {
