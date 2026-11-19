@@ -1,6 +1,5 @@
 //! `shcomp doctor`: check the configuration and installed shims.
 
-use std::path::Path;
 use std::process::ExitCode;
 
 use eyre::Result;
@@ -52,6 +51,7 @@ fn findings(config: &Config, registry: &Registry, check: bool) -> Result<Vec<Fin
         ("data", crate::dirs::data_dir()?),
         ("cache", crate::dirs::cache_dir()?),
         ("zsh", crate::shell::zsh::site_functions(config)?),
+        ("fish", crate::shell::fish::site_completions(config)?),
     ] {
         findings.push(Finding::ok("dirs", format!("{label}: {}", path.display())));
     }
@@ -69,26 +69,20 @@ fn findings(config: &Config, registry: &Registry, check: bool) -> Result<Vec<Fin
         format!("{} item(s)", registry.entries().len()),
     ));
 
-    findings.extend(crate::shell::zsh::doctor(config, registry, check)?);
-
-    let mise = crate::shell::zsh::mise_owned_commands(config, registry)?;
-    if mise.is_empty() {
-        findings.push(Finding::ok(
-            "mise",
-            "no selected command is installed from a packslip",
-        ));
-    } else {
-        findings.push(Finding::warn(
-            "mise",
-            format!(
-                "mise also completes {}; shcomp writes its own shim and wins on fpath, but a mise stub may duplicate candidates",
-                mise.join(", ")
-            ),
-        ));
+    let shells = &config.settings.shells;
+    if shells.iter().any(|shell| shell == "zsh") {
+        findings.extend(crate::shell::zsh::doctor(config, registry, check)?);
+    }
+    if shells.iter().any(|shell| shell == "fish") {
+        findings.extend(crate::shell::fish::doctor(config, registry, check)?);
     }
 
+    findings.extend(mise_findings(crate::shell::zsh::mise_owned_commands(
+        config, registry,
+    )?));
+
     let cache = crate::cache::cache_root(config)?;
-    let scripts = count_scripts(&cache.join("scripts"));
+    let scripts = crate::cache::scripts(&cache).len();
     findings.push(Finding::ok(
         "cache",
         format!("{} ({scripts} script(s))", cache.display()),
@@ -97,6 +91,37 @@ fn findings(config: &Config, registry: &Registry, check: bool) -> Result<Vec<Fin
     findings.extend(load_findings(config, registry)?);
 
     Ok(findings)
+}
+
+/// mise's packslip loader completing a selected command too.
+///
+/// shcomp's own entry always overlaps when shcomp itself was installed through
+/// packslip, and its shim wins, so that one is expected. Any other overlap is a
+/// stub that may duplicate candidates, and stays a warning.
+fn mise_findings(mut commands: Vec<String>) -> Vec<Finding> {
+    let mut findings = Vec::new();
+    if let Some(index) = commands.iter().position(|command| command == "shcomp") {
+        commands.remove(index);
+        findings.push(Finding::ok(
+            "mise",
+            "mise also completes shcomp, which it installed; shcomp's own shim wins",
+        ));
+    }
+    if !commands.is_empty() {
+        findings.push(Finding::warn(
+            "mise",
+            format!(
+                "mise also completes {}; shcomp writes its own shim and wins on fpath, but a mise stub may duplicate candidates",
+                commands.join(", ")
+            ),
+        ));
+    } else if findings.is_empty() {
+        findings.push(Finding::ok(
+            "mise",
+            "no selected command is installed from a packslip",
+        ));
+    }
+    findings
 }
 
 /// What the cold loads recorded (ADR-0011): failures the prompt never showed,
@@ -207,25 +232,6 @@ fn json(config: &Config, findings: &[Finding]) -> serde_json::Value {
     })
 }
 
-fn count_scripts(dir: &Path) -> usize {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return 0;
-    };
-    entries
-        .flatten()
-        .map(|entry| {
-            let path = entry.path();
-            if path.is_dir() {
-                count_scripts(&path)
-            } else if path.extension().and_then(|ext| ext.to_str()) == Some("zsh") {
-                1
-            } else {
-                0
-            }
-        })
-        .sum()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -236,5 +242,21 @@ mod tests {
         assert!(!findings.iter().any(|finding| finding.severity.is_error()));
         let findings = [Finding::error("zsh", "missing shim")];
         assert!(findings.iter().any(|finding| finding.severity.is_error()));
+    }
+
+    #[test]
+    fn shcomp_completing_itself_through_mise_is_expected() {
+        let findings = mise_findings(vec!["shcomp".to_string()]);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].severity, Severity::Ok);
+
+        let findings = mise_findings(vec!["shcomp".to_string(), "gh".to_string()]);
+        assert_eq!(findings[1].severity, Severity::Warn);
+        assert!(findings[1].message.contains("mise also completes gh;"));
+        assert!(!findings[1].message.contains("shcomp,"));
+
+        let findings = mise_findings(Vec::new());
+        assert_eq!(findings[0].severity, Severity::Ok);
+        assert!(findings[0].message.contains("no selected command"));
     }
 }

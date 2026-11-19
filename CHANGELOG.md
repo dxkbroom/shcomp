@@ -17,6 +17,18 @@ A quality-of-life release for zsh and fish; the plan is in `PLAN.md` under
   `loads` section: a generator that failed (with the first line it wrote to
   stderr, which the prompt never shows) and a shell whose shims are installed
   but have never loaded.
+- `doctor` checks fish the way it checks zsh: a `fish` section reports missing
+  and foreign shims as errors and stale or orphaned ones as warnings, `--check`
+  runs each fish generator and one completion through fish, and `dirs` lists
+  the fish directory. Each shell is checked only when `[settings].shells`
+  includes it.
+
+### Changed
+
+- `doctor` reports shcomp's own mise packslip overlap as `ok`: shcomp installed
+  through packslip always has a mise stub, and its own shim wins. Every other
+  overlap is still a warning.
+- `doctor` counts fish scripts in the cache too.
 
 ## v0.0.2
 

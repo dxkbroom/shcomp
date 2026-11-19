@@ -8,6 +8,8 @@ cat >mise-install/bin/fake <<'SH'
 printf '#compdef fake\n_fake() { compadd one; }\n'
 SH
 chmod +x mise-install/bin/fake
+# shcomp itself installed through mise's packslip backend, as the README says.
+cp "$SHCOMP_BIN" mise-install/bin/shcomp
 
 cat >bin/mise <<SH
 #!/bin/sh
@@ -47,7 +49,11 @@ assert_not_contains_text "$out" "skipped fake"
 assert_file_contains "$SHCOMP_DATA_DIR/zsh/site-functions/_fake" "#compdef fake"
 
 doctor=$("$SHCOMP_BIN" doctor)
-assert_contains_text "$doctor" "mise also completes fake"
+assert_contains_text "$doctor" "mise also completes fake;"
+# shcomp completing itself through mise is expected, not a warning.
+assert_contains_text "$doctor" "mise also completes shcomp, which it installed"
+assert_not_contains_text "$doctor" "completes fake, shcomp"
+assert_not_contains_text "$doctor" "completes shcomp, fake"
 
 row=$("$SHCOMP_BIN" ls --json)
 assert_contains_text "$row" '"owner": "shcomp+mise"'

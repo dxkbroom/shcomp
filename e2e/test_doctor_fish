@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# doctor checks the fish shims the way it checks zsh's: a missing shim is an
+# error, a stale or orphaned one a warning, and `dirs` names the directory.
+
+mkdir -p bin
+cat >bin/fake <<'SH'
+#!/bin/sh
+printf 'complete -c fake -a "one two"\n'
+SH
+chmod +x bin/fake
+
+write_config() {
+  cat >"$SHCOMP_CONFIG"
+}
+
+write_config <<'TOML'
+[tools]
+"example/fake" = { aliases = ["fk"] }
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+shells = ["fish"]
+
+[registry.tools.completions.fish]
+run = ["{{ bin }}"]
+TOML
+
+export PATH="$PWD/bin:$PATH"
+"$SHCOMP_BIN" install >/dev/null
+dir="$SHCOMP_DATA_DIR/fish/completions"
+
+doctor=$("$SHCOMP_BIN" doctor)
+assert_contains_text "$doctor" "fish: $dir"
+assert_not_contains_text "$doctor" "fake: missing shim"
+
+check=$("$SHCOMP_BIN" doctor --check)
+assert_contains_text "$check" "fake: generator ok"
+
+# The alias shim going missing is stale, the command's own is an error.
+rm "$dir/fk.fish"
+doctor=$("$SHCOMP_BIN" doctor)
+assert_contains_text "$doctor" "fake: shim is stale for fk"
+rm "$dir/fake.fish"
+if doctor=$("$SHCOMP_BIN" doctor); then
+  fail "doctor should exit non-zero when a fish shim is missing"
+fi
+assert_contains_text "$doctor" "fake: missing shim; run \`shcomp install\`"
+
+# A foreign file under the shim's name is not ours to overwrite.
+printf 'complete -c fake -a mine\n' >"$dir/fake.fish"
+doctor=$("$SHCOMP_BIN" doctor || true)
+assert_contains_text "$doctor" "is not a shcomp shim"
+rm "$dir/fake.fish"
+
+# A shim for a command that is no longer selected is an orphan.
+"$SHCOMP_BIN" install >/dev/null
+write_config <<'TOML'
+[tools]
+"example/fake" = true
+
+[[registry]]
+repo = "example/fake"
+main = "fake"
+
+[[registry.tools]]
+name = "fake"
+shells = ["fish"]
+
+[registry.tools.completions.fish]
+run = ["{{ bin }}"]
+TOML
+doctor=$("$SHCOMP_BIN" doctor)
+assert_contains_text "$doctor" "fk: stale shim $dir/fk.fish"
+
+# A config limited to zsh does not check fish at all.
+cat >>"$SHCOMP_CONFIG" <<'TOML'
+
+[settings]
+shells = ["zsh"]
+TOML
+doctor=$("$SHCOMP_BIN" doctor)
+assert_not_contains_text "$doctor" "stale shim $dir/fk.fish"
+
+ok "doctor checks fish shims"
