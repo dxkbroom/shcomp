@@ -113,7 +113,7 @@ impl Install {
             }
             table.add_row(row);
         }
-        crate::report::print(&table);
+        crate::report::print(&mut table);
 
         for note in &notes {
             println!("{note}");
