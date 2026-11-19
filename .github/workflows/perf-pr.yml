@@ -61,5 +61,6 @@ jobs:
           # request controls both its commits and its tak.toml.
           accept-trailers: true
           run: |
+            mise run perf:fixture
             cargo build --release --locked
             tak run --record

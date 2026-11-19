@@ -24,11 +24,36 @@ run = ["rumdl check", "tombi check", "cargo check --all-features"]
 [perf]
 description = "Benchmark instruction counts against the recorded baseline"
 dir = "{{config_root}}"
+depends = ["perf:fixture"]
 run = ["cargo build --release --locked", "tak run"]
+
+["perf:fixture"]
+description = "Make the host's valgrind reachable from the fixture PATH"
+dir = "{{config_root}}"
+run = '''#!/usr/bin/env bash
+# tak resolves `valgrind` through the measured command's PATH, and the fixture
+# subjects replace PATH with benchmarks/fixture/bin, so cachegrind is otherwise
+# never found and `ls`/`load` record wall clock only. Put a wrapper for the
+# host's valgrind in that directory; a host without one clears a stale wrapper
+# instead of leaving a broken one.
+#
+# A wrapper, not a symlink: Debian and Ubuntu ship /usr/bin/valgrind as a shell
+# script ending in `exec $0.bin "$@"`, so a link named valgrind looks for
+# valgrind.bin beside itself and exits 127. Exec'ing the real launcher by
+# absolute path keeps the measured command's own PATH untouched.
+fixture="benchmarks/fixture/bin/valgrind"
+rm -f "$fixture"
+if command -v valgrind >/dev/null 2>&1; then
+  target="$(command -v valgrind)"
+  printf '#!/bin/sh\nexec %q "$@"\n' "$target" >"$fixture"
+  chmod +x "$fixture"
+fi
+'''
 
 ["perf:record"]
 description = "Benchmark and append this commit to refs/notes/tak"
 dir = "{{config_root}}"
+depends = ["perf:fixture"]
 run = ["cargo build --release --locked", "tak run --record"]
 
 ["perf:docs"]

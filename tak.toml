@@ -7,6 +7,12 @@
 # of the measurement — `ls` in v0.0.1 asks mise about packslip ownership, and an
 # absent mise is the stable answer.
 #
+# Replacing PATH also hides valgrind: tak resolves it through the measured
+# command's PATH, so a subject that sets one would record wall clock only and
+# never gate on instructions. `mise run perf:fixture` puts a wrapper for the
+# host's valgrind in the fixture bin for exactly that reason, and both perf
+# workflows run it before `tak run`.
+#
 # Absolute instruction counts are only comparable within one runner class, so the
 # workflows pass `runner-class`; this file does not pin one, or a local run would
 # be recorded as if it were CI.
