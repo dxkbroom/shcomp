@@ -2,6 +2,7 @@
 # A `kind = "usage"` source is rendered by the `usage` CLI from the tool's spec,
 # and the spec command runs once per binary because the cache key is versioned.
 
+skip_unless_cmd zsh
 require_cmd usage
 
 mkdir -p v1 v2

@@ -417,7 +417,20 @@ pub fn validate_script(script: &str, shell: &str, kind: SourceKind) -> Result<()
                 || (kind == SourceKind::Bashcomp && script.contains("complete"))
         }
         "bash" => script.contains("complete"),
-        "fish" => script.contains("complete -c"),
+        // Fish accepts both short and long options, and generated scripts
+        // commonly put options such as `-f` before the command selector.
+        // Check tokens on each `complete` command rather than relying on one
+        // literal spelling and ordering.
+        "fish" => script.lines().any(|line| {
+            let mut words = line.split_whitespace();
+            if words.next() != Some("complete") {
+                return false;
+            }
+            let words: Vec<_> = words.collect();
+            words.windows(2).any(|pair| {
+                matches!(pair[0], "-c" | "--command") && !pair[1].starts_with('-')
+            })
+        }),
         "nu" | "nushell" => script.contains("complete"),
         "powershell" | "pwsh" => script.contains("Register-ArgumentCompleter"),
         other => bail!("unsupported shell `{other}`"),

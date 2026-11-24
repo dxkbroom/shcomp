@@ -2,8 +2,10 @@ name: ci
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +22,7 @@ permissions:
 
 jobs:
   check:
+    if: github.event_name != 'pull_request' || github.event.action != 'labeled' || contains(github.event.pull_request.labels.*.name, 'full-shell-tests')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -27,9 +30,11 @@ jobs:
 
       - uses: jdx/mise-action@v5
 
-      # The e2e suite drives real zsh completions, and GitHub's runner image
-      # ships neither zsh nor a mise recipe for it, so install it explicitly.
+      # The standard runner image has no zsh. E2E tests requiring zsh are
+      # skipped by their own guards unless this slower coverage is requested.
+      # Main-branch runs always install it so merged changes get full coverage.
       - name: Install zsh
+        if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-shell-tests')
         run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh
 
       - uses: Swatinem/rust-cache@v2

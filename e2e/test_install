@@ -2,6 +2,8 @@
 # install reconciles shims, doctor notices stale aliases, and uninstall removes
 # only files shcomp wrote.
 
+skip_unless_cmd zsh
+
 mkdir -p bin
 cat >bin/fake <<'SH'
 #!/bin/sh

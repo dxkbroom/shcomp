@@ -1,8 +1,8 @@
 name: perf-pr
 
 # Measures a pull request and compares it with the merge base, failing when an
-# instruction count rises past the gate. A chart nobody opens does not protect
-# anything; a red check on the pull request does.
+# instruction count rises past the gate. This is opt-in because measurement
+# takes minutes; add the `performance-check` label when a change needs the gate.
 #
 # Nothing here writes to refs/notes/tak: a branch's numbers are not trunk's, and
 # a series that mixes them cannot be read.
@@ -14,7 +14,7 @@ name: perf-pr
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [labeled, synchronize, reopened]
 
 permissions:
   contents: read
@@ -25,6 +25,7 @@ concurrency:
 
 jobs:
   compare:
+    if: contains(github.event.pull_request.labels.*.name, 'performance-check')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
