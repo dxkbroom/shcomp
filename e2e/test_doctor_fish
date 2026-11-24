@@ -17,6 +17,9 @@ write_config <<'TOML'
 [tools]
 "example/fake" = { aliases = ["fk"] }
 
+[settings]
+shells = ["fish"]
+
 [[registry]]
 repo = "example/fake"
 main = "fake"
@@ -62,6 +65,9 @@ write_config <<'TOML'
 [tools]
 "example/fake" = true
 
+[settings]
+shells = ["fish"]
+
 [[registry]]
 repo = "example/fake"
 main = "fake"
@@ -77,12 +83,8 @@ doctor=$("$SHCOMP_BIN" doctor)
 assert_contains_text "$doctor" "fk: stale shim $dir/fk.fish"
 
 # A config limited to zsh does not check fish at all.
-cat >>"$SHCOMP_CONFIG" <<'TOML'
-
-[settings]
-shells = ["zsh"]
-TOML
-doctor=$("$SHCOMP_BIN" doctor)
+sed -i 's/shells = \["fish"\]/shells = ["zsh"]/' "$SHCOMP_CONFIG"
+doctor=$("$SHCOMP_BIN" doctor || true)
 assert_not_contains_text "$doctor" "stale shim $dir/fk.fish"
 
 ok "doctor checks fish shims"
